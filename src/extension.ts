@@ -11,6 +11,12 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 	);
 
+	context.subscriptions.push(
+		vscode.commands.registerCommand('abap.openAddConnectionScreen', () => {
+			vscode.window.showInformationMessage('Hey from the command!');
+		}),
+	);
+
 	memFs.createDirectory(vscode.Uri.parse('memfs:/A4H'));
 	memFs.createDirectory(vscode.Uri.parse('memfs:/W4D'));
 

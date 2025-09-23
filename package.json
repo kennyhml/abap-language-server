@@ -12,12 +12,18 @@
   "main": "./out/extension.js",
   "activationEvents": [],
   "contributes": {
+    "commands": [
+      {
+        "command": "abap.openAddConnectionScreen",
+        "title": "Add new System Connection"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
           "id": "adt",
           "title": "ABAP Development Tools",
-          "icon": "media/shard.png"
+          "icon": "media/adt.png"
         },
         {
           "id": "transports",
@@ -36,14 +42,14 @@
       "adt": [
         {
           "id": "systems",
-          "name": "Available Systems",
-          "icon": "media/shard.png",
+          "name": "System Connections",
+          "icon": "media/adt.png",
           "type": "tree"
         },
         {
           "id": "test",
           "name": "Test",
-          "icon": "media/shard.png",
+          "icon": "media/adt.png",
           "type": "tree"
         }
       ],
@@ -51,13 +57,16 @@
         {
           "id": "transports",
           "name": "Open Transports",
-          "icon": "media/shard.png",
+          "icon": "media/transport.png",
           "type": "tree"
         }
       ]
     }
   },
   "scripts": {
+    "install:all": "npm install && cd webview-ui && npm install",
+    "start:webview": "cd webview-ui && npm run dev",
+    "build:webview": "cd webview-ui && npm run build",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
