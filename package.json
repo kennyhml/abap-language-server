@@ -1,0 +1,79 @@
+{
+  "name": "abap",
+  "displayName": "ABAP",
+  "description": "ABAP Development in VSC",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.104.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "adt",
+          "title": "ABAP Development Tools",
+          "icon": "media/shard.png"
+        },
+        {
+          "id": "transports",
+          "title": "Transport Organizer",
+          "icon": "media/transport.png"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "systems",
+        "contents": "No connections yet.\n[Add New Connection](command:abap.openAddConnectionScreen)"
+      }
+    ],
+    "views": {
+      "adt": [
+        {
+          "id": "systems",
+          "name": "Available Systems",
+          "icon": "media/shard.png",
+          "type": "tree"
+        },
+        {
+          "id": "test",
+          "name": "Test",
+          "icon": "media/shard.png",
+          "type": "tree"
+        }
+      ],
+      "transports": [
+        {
+          "id": "transports",
+          "name": "Open Transports",
+          "icon": "media/shard.png",
+          "type": "tree"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.104.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@typescript-eslint/eslint-plugin": "^8.42.0",
+    "@typescript-eslint/parser": "^8.42.0",
+    "eslint": "^9.34.0",
+    "typescript": "^5.9.2",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
