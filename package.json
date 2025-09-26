@@ -9,7 +9,7 @@
   "categories": [
     "Other"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension/index.js",
   "activationEvents": [],
   "contributes": {
     "commands": [
@@ -64,25 +64,30 @@
     }
   },
   "scripts": {
-    "install:all": "npm install && cd webview-ui && npm install",
-    "start:webview": "cd webview-ui && npm run dev",
-    "build:webview": "cd webview-ui && npm run build",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
   },
+  "dependencies": {
+    "@vscode/webview-ui-toolkit": "^1.4.0",
+    "svelte": "^5.0.3",
+    "svelte-check": "^4.0.5"
+  },
   "devDependencies": {
-    "@types/vscode": "^1.104.0",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "22.x",
-    "@typescript-eslint/eslint-plugin": "^8.42.0",
-    "@typescript-eslint/parser": "^8.42.0",
-    "eslint": "^9.34.0",
-    "typescript": "^5.9.2",
-    "@vscode/test-cli": "^0.0.11",
-    "@vscode/test-electron": "^2.5.2"
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@tomjs/vite-plugin-vscode": "^5.0.0",
+    "@tsconfig/svelte": "^5.0.4",
+    "@types/node": "^24.5.2",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/vscode": "^1.93.0",
+    "@types/vscode-webview": "^1.57.5",
+    "@vitejs/plugin-react": "^4.4.1",
+    "@vitejs/plugin-react-swc": "^3.9.0"
   }
 }
