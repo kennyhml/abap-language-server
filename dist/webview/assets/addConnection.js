@@ -15,8 +15,8 @@ var _previous, _callbacks, _pending, _deferred, _neutered, _async_effects, _boun
   if (relList && relList.supports && relList.supports("modulepreload")) {
     return;
   }
-  for (const link of document.querySelectorAll('link[rel="modulepreload"]')) {
-    processPreload(link);
+  for (const link2 of document.querySelectorAll('link[rel="modulepreload"]')) {
+    processPreload(link2);
   }
   new MutationObserver((mutations) => {
     for (const mutation of mutations) {
@@ -29,22 +29,22 @@ var _previous, _callbacks, _pending, _deferred, _neutered, _async_effects, _boun
       }
     }
   }).observe(document, { childList: true, subtree: true });
-  function getFetchOpts(link) {
+  function getFetchOpts(link2) {
     const fetchOpts = {};
-    if (link.integrity) fetchOpts.integrity = link.integrity;
-    if (link.referrerPolicy) fetchOpts.referrerPolicy = link.referrerPolicy;
-    if (link.crossOrigin === "use-credentials")
+    if (link2.integrity) fetchOpts.integrity = link2.integrity;
+    if (link2.referrerPolicy) fetchOpts.referrerPolicy = link2.referrerPolicy;
+    if (link2.crossOrigin === "use-credentials")
       fetchOpts.credentials = "include";
-    else if (link.crossOrigin === "anonymous") fetchOpts.credentials = "omit";
+    else if (link2.crossOrigin === "anonymous") fetchOpts.credentials = "omit";
     else fetchOpts.credentials = "same-origin";
     return fetchOpts;
   }
-  function processPreload(link) {
-    if (link.ep)
+  function processPreload(link2) {
+    if (link2.ep)
       return;
-    link.ep = true;
-    const fetchOpts = getFetchOpts(link);
-    fetch(link.href, fetchOpts);
+    link2.ep = true;
+    const fetchOpts = getFetchOpts(link2);
+    fetch(link2.href, fetchOpts);
   }
 })();
 const DEV = false;
@@ -53,7 +53,6 @@ var index_of = Array.prototype.indexOf;
 var array_from = Array.from;
 var define_property = Object.defineProperty;
 var get_descriptor = Object.getOwnPropertyDescriptor;
-var get_descriptors = Object.getOwnPropertyDescriptors;
 var object_prototype = Object.prototype;
 var array_prototype = Array.prototype;
 var get_prototype_of = Object.getPrototypeOf;
@@ -133,14 +132,18 @@ function svelte_boundary_reset_onerror() {
     throw new Error(`https://svelte.dev/e/svelte_boundary_reset_onerror`);
   }
 }
+const EACH_ITEM_REACTIVE = 1;
+const EACH_INDEX_REACTIVE = 1 << 1;
+const EACH_ITEM_IMMUTABLE = 1 << 4;
+const TEMPLATE_FRAGMENT = 1;
 const TEMPLATE_USE_IMPORT_NODE = 1 << 1;
 const UNINITIALIZED = Symbol();
-const NAMESPACE_HTML = "http://www.w3.org/1999/xhtml";
 function svelte_boundary_reset_noop() {
   {
     console.warn(`https://svelte.dev/e/svelte_boundary_reset_noop`);
   }
 }
+let hydrating = false;
 function equals(value) {
   return value === this.v;
 }
@@ -150,11 +153,7 @@ function safe_not_equal(a, b) {
 function safe_equals(value) {
   return !safe_not_equal(value, this.v);
 }
-let legacy_mode_flag = false;
 let tracing_mode_flag = false;
-function enable_legacy_mode_flag() {
-  legacy_mode_flag = true;
-}
 let component_context = null;
 function set_component_context(context) {
   component_context = context;
@@ -166,7 +165,7 @@ function push(props, runes = false, fn) {
     e: null,
     s: props,
     x: null,
-    l: legacy_mode_flag && !runes ? { s: null, u: null, $: [] } : null
+    l: null
   };
 }
 function pop(component) {
@@ -188,7 +187,7 @@ function pop(component) {
   );
 }
 function is_runes() {
-  return !legacy_mode_flag || component_context !== null && component_context.l === null;
+  return true;
 }
 let micro_tasks = [];
 function run_micro_tasks() {
@@ -630,7 +629,7 @@ function createSubscriber(start) {
       get(version);
       render_effect(() => {
         if (subscribers === 0) {
-          stop = untrack(() => start(() => increment$1(version)));
+          stop = untrack(() => start(() => increment(version)));
         }
         subscribers += 1;
         return () => {
@@ -639,7 +638,7 @@ function createSubscriber(start) {
             if (subscribers === 0) {
               stop == null ? void 0 : stop();
               stop = void 0;
-              increment$1(version);
+              increment(version);
             }
           });
         };
@@ -962,7 +961,7 @@ function move_effect(effect, fragment) {
   }
 }
 function flatten(sync, async, fn) {
-  const d = is_runes() ? derived : derived_safe_equal;
+  const d = derived;
   if (async.length === 0) {
     fn(sync.map(d));
     return;
@@ -1200,6 +1199,14 @@ function state(v, stack) {
   push_reaction_value(s);
   return s;
 }
+// @__NO_SIDE_EFFECTS__
+function mutable_source(initial_value, immutable = false, trackable = true) {
+  const s = source(initial_value);
+  if (!immutable) {
+    s.equals = safe_equals;
+  }
+  return s;
+}
 function set(source2, value, should_proxy = false) {
   if (active_reaction !== null && // since we are untracking the function inside `$inspect.with` we need to add this check
   // to ensure we error if state is set inside an inspect effect
@@ -1231,7 +1238,7 @@ function internal_set(source2, value) {
     }
     source2.wv = increment_write_version();
     mark_reactions(source2, DIRTY);
-    if (is_runes() && active_effect !== null && (active_effect.f & CLEAN) !== 0 && (active_effect.f & (BRANCH_EFFECT | ROOT_EFFECT)) === 0) {
+    if (active_effect !== null && (active_effect.f & CLEAN) !== 0 && (active_effect.f & (BRANCH_EFFECT | ROOT_EFFECT)) === 0) {
       if (untracked_writes === null) {
         set_untracked_writes([source2]);
       } else {
@@ -1241,18 +1248,16 @@ function internal_set(source2, value) {
   }
   return value;
 }
-function increment$1(source2) {
+function increment(source2) {
   set(source2, source2.v + 1);
 }
 function mark_reactions(signal, status) {
   var reactions = signal.reactions;
   if (reactions === null) return;
-  var runes = is_runes();
   var length = reactions.length;
   for (var i = 0; i < length; i++) {
     var reaction = reactions[i];
     var flags2 = reaction.f;
-    if (!runes && reaction === active_effect) continue;
     var not_dirty = (flags2 & DIRTY) === 0;
     if (not_dirty) {
       set_signal_status(reaction, status);
@@ -1336,11 +1341,11 @@ function proxy(value) {
           if (prop in target) {
             const s2 = with_parent(() => /* @__PURE__ */ state(UNINITIALIZED));
             sources.set(prop, s2);
-            increment$1(version);
+            increment(version);
           }
         } else {
           set(s, UNINITIALIZED);
-          increment$1(version);
+          increment(version);
         }
         return true;
       },
@@ -1449,7 +1454,7 @@ function proxy(value) {
               set(ls, n + 1);
             }
           }
-          increment$1(version);
+          increment(version);
         }
         return true;
       },
@@ -1514,6 +1519,19 @@ function child(node, is_text) {
     return /* @__PURE__ */ get_first_child(node);
   }
 }
+function first_child(fragment, is_text = false) {
+  {
+    var first = (
+      /** @type {DocumentFragment} */
+      /* @__PURE__ */ get_first_child(
+        /** @type {Node} */
+        fragment
+      )
+    );
+    if (first instanceof Comment && first.data === "") return /* @__PURE__ */ get_next_sibling(first);
+    return first;
+  }
+}
 function sibling(node, count = 1, is_text = false) {
   let next_sibling = node;
   while (count--) {
@@ -1523,6 +1541,12 @@ function sibling(node, count = 1, is_text = false) {
   {
     return next_sibling;
   }
+}
+function clear_text_content(node) {
+  node.textContent = "";
+}
+function should_defer_append() {
+  return false;
 }
 function without_reactive_context(fn) {
   var previous_reaction = active_reaction;
@@ -1771,6 +1795,31 @@ function pause_children(effect, transitions, local) {
     child2 = sibling2;
   }
 }
+function resume_effect(effect) {
+  resume_children(effect, true);
+}
+function resume_children(effect, local) {
+  if ((effect.f & INERT) === 0) return;
+  effect.f ^= INERT;
+  if ((effect.f & CLEAN) === 0) {
+    set_signal_status(effect, DIRTY);
+    schedule_effect(effect);
+  }
+  var child2 = effect.first;
+  while (child2 !== null) {
+    var sibling2 = child2.next;
+    var transparent = (child2.f & EFFECT_TRANSPARENT) !== 0 || (child2.f & BRANCH_EFFECT) !== 0;
+    resume_children(child2, transparent ? local : false);
+    child2 = sibling2;
+  }
+  if (effect.transitions !== null) {
+    for (const transition of effect.transitions) {
+      if (transition.is_global || local) {
+        transition.in();
+      }
+    }
+  }
+}
 let is_updating_effect = false;
 function set_is_updating_effect(value) {
   is_updating_effect = value;
@@ -1999,13 +2048,13 @@ function update_reaction(reaction) {
 function remove_reaction(signal, dependency) {
   let reactions = dependency.reactions;
   if (reactions !== null) {
-    var index = index_of.call(reactions, signal);
-    if (index !== -1) {
+    var index2 = index_of.call(reactions, signal);
+    if (index2 !== -1) {
       var new_length = reactions.length - 1;
       if (new_length === 0) {
         reactions = dependency.reactions = null;
       } else {
-        reactions[index] = reactions[new_length];
+        reactions[index2] = reactions[new_length];
         reactions.pop();
       }
     }
@@ -2164,14 +2213,6 @@ function is_passive_event(name) {
 }
 const all_registered_events = /* @__PURE__ */ new Set();
 const root_event_handles = /* @__PURE__ */ new Set();
-function delegate(events) {
-  for (var i = 0; i < events.length; i++) {
-    all_registered_events.add(events[i]);
-  }
-  for (var fn of root_event_handles) {
-    fn(events);
-  }
-}
 let last_propagated_event = null;
 function handle_event_propagation(event) {
   var _a2;
@@ -2280,20 +2321,31 @@ function assign_nodes(start, end) {
 }
 // @__NO_SIDE_EFFECTS__
 function from_html(content, flags2) {
+  var is_fragment = (flags2 & TEMPLATE_FRAGMENT) !== 0;
   var use_import_node = (flags2 & TEMPLATE_USE_IMPORT_NODE) !== 0;
   var node;
   var has_start = !content.startsWith("<!>");
   return () => {
     if (node === void 0) {
       node = create_fragment_from_html(has_start ? content : "<!>" + content);
-      node = /** @type {Node} */
+      if (!is_fragment) node = /** @type {Node} */
       /* @__PURE__ */ get_first_child(node);
     }
     var clone = (
       /** @type {TemplateNode} */
       use_import_node || is_firefox ? document.importNode(node, true) : node.cloneNode(true)
     );
-    {
+    if (is_fragment) {
+      var start = (
+        /** @type {TemplateNode} */
+        /* @__PURE__ */ get_first_child(clone)
+      );
+      var end = (
+        /** @type {TemplateNode} */
+        clone.lastChild
+      );
+      assign_nodes(start, end);
+    } else {
       assign_nodes(clone, clone);
     }
     return clone;
@@ -2393,85 +2445,397 @@ function _mount(Component, { target, anchor, props = {}, events, context, intro 
   return component;
 }
 let mounted_components = /* @__PURE__ */ new WeakMap();
-const IS_CUSTOM_ELEMENT = Symbol("is custom element");
-const IS_HTML = Symbol("is html");
-function set_attribute(element, attribute, value, skip_warning) {
-  var attributes = get_attributes(element);
-  if (attributes[attribute] === (attributes[attribute] = value)) return;
-  if (value == null) {
-    element.removeAttribute(attribute);
-  } else if (typeof value !== "string" && get_setters(element).includes(attribute)) {
-    element[attribute] = value;
-  } else {
-    element.setAttribute(attribute, value);
+function index(_, i) {
+  return i;
+}
+function pause_effects(state2, items, controlled_anchor) {
+  var items_map = state2.items;
+  var transitions = [];
+  var length = items.length;
+  for (var i = 0; i < length; i++) {
+    pause_children(items[i].e, transitions, true);
   }
+  var is_controlled = length > 0 && transitions.length === 0 && controlled_anchor !== null;
+  if (is_controlled) {
+    var parent_node = (
+      /** @type {Element} */
+      /** @type {Element} */
+      controlled_anchor.parentNode
+    );
+    clear_text_content(parent_node);
+    parent_node.append(
+      /** @type {Element} */
+      controlled_anchor
+    );
+    items_map.clear();
+    link(state2, items[0].prev, items[length - 1].next);
+  }
+  run_out_transitions(transitions, () => {
+    for (var i2 = 0; i2 < length; i2++) {
+      var item = items[i2];
+      if (!is_controlled) {
+        items_map.delete(item.k);
+        link(state2, item.prev, item.next);
+      }
+      destroy_effect(item.e, !is_controlled);
+    }
+  });
 }
-function get_attributes(element) {
-  return (
-    /** @type {Record<string | symbol, unknown>} **/
-    // @ts-expect-error
-    element.__attributes ?? (element.__attributes = {
-      [IS_CUSTOM_ELEMENT]: element.nodeName.includes("-"),
-      [IS_HTML]: element.namespaceURI === NAMESPACE_HTML
-    })
-  );
-}
-var setters_cache = /* @__PURE__ */ new Map();
-function get_setters(element) {
-  var cache_key = element.getAttribute("is") || element.nodeName;
-  var setters = setters_cache.get(cache_key);
-  if (setters) return setters;
-  setters_cache.set(cache_key, setters = []);
-  var descriptors;
-  var proto = element;
-  var element_proto = Element.prototype;
-  while (element_proto !== proto) {
-    descriptors = get_descriptors(proto);
-    for (var key in descriptors) {
-      if (descriptors[key].set) {
-        setters.push(key);
+function each(node, flags2, get_collection, get_key, render_fn, fallback_fn = null) {
+  var anchor = node;
+  var state2 = { flags: flags2, items: /* @__PURE__ */ new Map(), first: null };
+  {
+    var parent_node = (
+      /** @type {Element} */
+      node
+    );
+    anchor = parent_node.appendChild(create_text());
+  }
+  var fallback = null;
+  var was_empty = false;
+  var offscreen_items = /* @__PURE__ */ new Map();
+  var each_array = /* @__PURE__ */ derived_safe_equal(() => {
+    var collection = get_collection();
+    return is_array(collection) ? collection : collection == null ? [] : array_from(collection);
+  });
+  var array;
+  var each_effect;
+  function commit() {
+    reconcile(
+      each_effect,
+      array,
+      state2,
+      offscreen_items,
+      anchor,
+      render_fn,
+      flags2,
+      get_key,
+      get_collection
+    );
+    if (fallback_fn !== null) {
+      if (array.length === 0) {
+        if (fallback) {
+          resume_effect(fallback);
+        } else {
+          fallback = branch(() => fallback_fn(anchor));
+        }
+      } else if (fallback !== null) {
+        pause_effect(fallback, () => {
+          fallback = null;
+        });
       }
     }
-    proto = get_prototype_of(proto);
   }
-  return setters;
+  block(() => {
+    each_effect ?? (each_effect = /** @type {Effect} */
+    active_effect);
+    array = /** @type {V[]} */
+    get(each_array);
+    var length = array.length;
+    if (was_empty && length === 0) {
+      return;
+    }
+    was_empty = length === 0;
+    var item, i, value, key;
+    {
+      if (should_defer_append()) {
+        var keys = /* @__PURE__ */ new Set();
+        var batch = (
+          /** @type {Batch} */
+          current_batch
+        );
+        for (i = 0; i < length; i += 1) {
+          value = array[i];
+          key = get_key(value, i);
+          var existing = state2.items.get(key) ?? offscreen_items.get(key);
+          if (existing) {
+            {
+              update_item(existing, value, i);
+            }
+          } else {
+            item = create_item(
+              null,
+              state2,
+              null,
+              null,
+              value,
+              key,
+              i,
+              render_fn,
+              flags2,
+              get_collection,
+              true
+            );
+            offscreen_items.set(key, item);
+          }
+          keys.add(key);
+        }
+        for (const [key2, item2] of state2.items) {
+          if (!keys.has(key2)) {
+            batch.skipped_effects.add(item2.e);
+          }
+        }
+        batch.add_callback(commit);
+      } else {
+        commit();
+      }
+    }
+    get(each_array);
+  });
+}
+function reconcile(each_effect, array, state2, offscreen_items, anchor, render_fn, flags2, get_key, get_collection) {
+  var length = array.length;
+  var items = state2.items;
+  var first = state2.first;
+  var current = first;
+  var seen;
+  var prev = null;
+  var matched = [];
+  var stashed = [];
+  var value;
+  var key;
+  var item;
+  var i;
+  for (i = 0; i < length; i += 1) {
+    value = array[i];
+    key = get_key(value, i);
+    item = items.get(key);
+    if (item === void 0) {
+      var pending = offscreen_items.get(key);
+      if (pending !== void 0) {
+        offscreen_items.delete(key);
+        items.set(key, pending);
+        var next = prev ? prev.next : current;
+        link(state2, prev, pending);
+        link(state2, pending, next);
+        move(pending, next, anchor);
+        prev = pending;
+      } else {
+        var child_anchor = current ? (
+          /** @type {TemplateNode} */
+          current.e.nodes_start
+        ) : anchor;
+        prev = create_item(
+          child_anchor,
+          state2,
+          prev,
+          prev === null ? state2.first : prev.next,
+          value,
+          key,
+          i,
+          render_fn,
+          flags2,
+          get_collection
+        );
+      }
+      items.set(key, prev);
+      matched = [];
+      stashed = [];
+      current = prev.next;
+      continue;
+    }
+    {
+      update_item(item, value, i);
+    }
+    if ((item.e.f & INERT) !== 0) {
+      resume_effect(item.e);
+    }
+    if (item !== current) {
+      if (seen !== void 0 && seen.has(item)) {
+        if (matched.length < stashed.length) {
+          var start = stashed[0];
+          var j;
+          prev = start.prev;
+          var a = matched[0];
+          var b = matched[matched.length - 1];
+          for (j = 0; j < matched.length; j += 1) {
+            move(matched[j], start, anchor);
+          }
+          for (j = 0; j < stashed.length; j += 1) {
+            seen.delete(stashed[j]);
+          }
+          link(state2, a.prev, b.next);
+          link(state2, prev, a);
+          link(state2, b, start);
+          current = start;
+          prev = b;
+          i -= 1;
+          matched = [];
+          stashed = [];
+        } else {
+          seen.delete(item);
+          move(item, current, anchor);
+          link(state2, item.prev, item.next);
+          link(state2, item, prev === null ? state2.first : prev.next);
+          link(state2, prev, item);
+          prev = item;
+        }
+        continue;
+      }
+      matched = [];
+      stashed = [];
+      while (current !== null && current.k !== key) {
+        if ((current.e.f & INERT) === 0) {
+          (seen ?? (seen = /* @__PURE__ */ new Set())).add(current);
+        }
+        stashed.push(current);
+        current = current.next;
+      }
+      if (current === null) {
+        continue;
+      }
+      item = current;
+    }
+    matched.push(item);
+    prev = item;
+    current = item.next;
+  }
+  if (current !== null || seen !== void 0) {
+    var to_destroy = seen === void 0 ? [] : array_from(seen);
+    while (current !== null) {
+      if ((current.e.f & INERT) === 0) {
+        to_destroy.push(current);
+      }
+      current = current.next;
+    }
+    var destroy_length = to_destroy.length;
+    if (destroy_length > 0) {
+      var controlled_anchor = length === 0 ? anchor : null;
+      pause_effects(state2, to_destroy, controlled_anchor);
+    }
+  }
+  each_effect.first = state2.first && state2.first.e;
+  each_effect.last = prev && prev.e;
+  for (var unused of offscreen_items.values()) {
+    destroy_effect(unused.e);
+  }
+  offscreen_items.clear();
+}
+function update_item(item, value, index2, type) {
+  {
+    internal_set(item.v, value);
+  }
+  {
+    item.i = index2;
+  }
+}
+function create_item(anchor, state2, prev, next, value, key, index2, render_fn, flags2, get_collection, deferred2) {
+  var reactive = (flags2 & EACH_ITEM_REACTIVE) !== 0;
+  var mutable = (flags2 & EACH_ITEM_IMMUTABLE) === 0;
+  var v = reactive ? mutable ? /* @__PURE__ */ mutable_source(value, false, false) : source(value) : value;
+  var i = (flags2 & EACH_INDEX_REACTIVE) === 0 ? index2 : source(index2);
+  var item = {
+    i,
+    v,
+    k: key,
+    a: null,
+    // @ts-expect-error
+    e: null,
+    prev,
+    next
+  };
+  try {
+    if (anchor === null) {
+      var fragment = document.createDocumentFragment();
+      fragment.append(anchor = create_text());
+    }
+    item.e = branch(() => render_fn(
+      /** @type {Node} */
+      anchor,
+      v,
+      i,
+      get_collection
+    ), hydrating);
+    item.e.prev = prev && prev.e;
+    item.e.next = next && next.e;
+    if (prev === null) {
+      if (!deferred2) {
+        state2.first = item;
+      }
+    } else {
+      prev.next = item;
+      prev.e.next = item.e;
+    }
+    if (next !== null) {
+      next.prev = item;
+      next.e.prev = item.e;
+    }
+    return item;
+  } finally {
+  }
+}
+function move(item, next, anchor) {
+  var end = item.next ? (
+    /** @type {TemplateNode} */
+    item.next.e.nodes_start
+  ) : anchor;
+  var dest = next ? (
+    /** @type {TemplateNode} */
+    next.e.nodes_start
+  ) : anchor;
+  var node = (
+    /** @type {TemplateNode} */
+    item.e.nodes_start
+  );
+  while (node !== null && node !== end) {
+    var next_node = (
+      /** @type {TemplateNode} */
+      /* @__PURE__ */ get_next_sibling(node)
+    );
+    dest.before(node);
+    node = next_node;
+  }
+}
+function link(state2, prev, next) {
+  if (prev === null) {
+    state2.first = next;
+  } else {
+    prev.next = next;
+    prev.e.next = next && next.e;
+  }
+  if (next !== null) {
+    next.prev = prev;
+    next.e.prev = prev && prev.e;
+  }
 }
 const PUBLIC_VERSION = "5";
 if (typeof window !== "undefined") {
   ((_a = window.__svelte ?? (window.__svelte = {})).v ?? (_a.v = /* @__PURE__ */ new Set())).add(PUBLIC_VERSION);
 }
-enable_legacy_mode_flag();
-const svelteLogo = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%20aria-hidden='true'%20role='img'%20class='iconify%20iconify--logos'%20width='26.6'%20height='32'%20preserveAspectRatio='xMidYMid%20meet'%20viewBox='0%200%20256%20308'%3e%3cpath%20fill='%23FF3E00'%20d='M239.682%2040.707C211.113-.182%20154.69-12.301%20113.895%2013.69L42.247%2059.356a82.198%2082.198%200%200%200-37.135%2055.056a86.566%2086.566%200%200%200%208.536%2055.576a82.425%2082.425%200%200%200-12.296%2030.719a87.596%2087.596%200%200%200%2014.964%2066.244c28.574%2040.893%2084.997%2053.007%20125.787%2027.016l71.648-45.664a82.182%2082.182%200%200%200%2037.135-55.057a86.601%2086.601%200%200%200-8.53-55.577a82.409%2082.409%200%200%200%2012.29-30.718a87.573%2087.573%200%200%200-14.963-66.244'%3e%3c/path%3e%3cpath%20fill='%23FFF'%20d='M106.889%20270.841c-23.102%206.007-47.497-3.036-61.103-22.648a52.685%2052.685%200%200%201-9.003-39.85a49.978%2049.978%200%200%201%201.713-6.693l1.35-4.115l3.671%202.697a92.447%2092.447%200%200%200%2028.036%2014.007l2.663.808l-.245%202.659a16.067%2016.067%200%200%200%202.89%2010.656a17.143%2017.143%200%200%200%2018.397%206.828a15.786%2015.786%200%200%200%204.403-1.935l71.67-45.672a14.922%2014.922%200%200%200%206.734-9.977a15.923%2015.923%200%200%200-2.713-12.011a17.156%2017.156%200%200%200-18.404-6.832a15.78%2015.78%200%200%200-4.396%201.933l-27.35%2017.434a52.298%2052.298%200%200%201-14.553%206.391c-23.101%206.007-47.497-3.036-61.101-22.649a52.681%2052.681%200%200%201-9.004-39.849a49.428%2049.428%200%200%201%2022.34-33.114l71.664-45.677a52.218%2052.218%200%200%201%2014.563-6.398c23.101-6.007%2047.497%203.036%2061.101%2022.648a52.685%2052.685%200%200%201%209.004%2039.85a50.559%2050.559%200%200%201-1.713%206.692l-1.35%204.116l-3.67-2.693a92.373%2092.373%200%200%200-28.037-14.013l-2.664-.809l.246-2.658a16.099%2016.099%200%200%200-2.89-10.656a17.143%2017.143%200%200%200-18.398-6.828a15.786%2015.786%200%200%200-4.402%201.935l-71.67%2045.674a14.898%2014.898%200%200%200-6.73%209.975a15.9%2015.9%200%200%200%202.709%2012.012a17.156%2017.156%200%200%200%2018.404%206.832a15.841%2015.841%200%200%200%204.402-1.935l27.345-17.427a52.147%2052.147%200%200%201%2014.552-6.397c23.101-6.006%2047.497%203.037%2061.102%2022.65a52.681%2052.681%200%200%201%209.003%2039.848a49.453%2049.453%200%200%201-22.34%2033.12l-71.664%2045.673a52.218%2052.218%200%200%201-14.563%206.398'%3e%3c/path%3e%3c/svg%3e";
-const viteLogo = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%20aria-hidden='true'%20role='img'%20class='iconify%20iconify--logos'%20width='31.88'%20height='32'%20preserveAspectRatio='xMidYMid%20meet'%20viewBox='0%200%20256%20257'%3e%3cdefs%3e%3clinearGradient%20id='IconifyId1813088fe1fbc01fb466'%20x1='-.828%25'%20x2='57.636%25'%20y1='7.652%25'%20y2='78.411%25'%3e%3cstop%20offset='0%25'%20stop-color='%2341D1FF'%3e%3c/stop%3e%3cstop%20offset='100%25'%20stop-color='%23BD34FE'%3e%3c/stop%3e%3c/linearGradient%3e%3clinearGradient%20id='IconifyId1813088fe1fbc01fb467'%20x1='43.376%25'%20x2='50.316%25'%20y1='2.242%25'%20y2='89.03%25'%3e%3cstop%20offset='0%25'%20stop-color='%23FFEA83'%3e%3c/stop%3e%3cstop%20offset='8.333%25'%20stop-color='%23FFDD35'%3e%3c/stop%3e%3cstop%20offset='100%25'%20stop-color='%23FFA800'%3e%3c/stop%3e%3c/linearGradient%3e%3c/defs%3e%3cpath%20fill='url(%23IconifyId1813088fe1fbc01fb466)'%20d='M255.153%2037.938L134.897%20252.976c-2.483%204.44-8.862%204.466-11.382.048L.875%2037.958c-2.746-4.814%201.371-10.646%206.827-9.67l120.385%2021.517a6.537%206.537%200%200%200%202.322-.004l117.867-21.483c5.438-.991%209.574%204.796%206.877%209.62Z'%3e%3c/path%3e%3cpath%20fill='url(%23IconifyId1813088fe1fbc01fb467)'%20d='M185.432.063L96.44%2017.501a3.268%203.268%200%200%200-2.634%203.014l-5.474%2092.456a3.268%203.268%200%200%200%203.997%203.378l24.777-5.718c2.318-.535%204.413%201.507%203.936%203.838l-7.361%2036.047c-.495%202.426%201.782%204.5%204.151%203.78l15.304-4.649c2.372-.72%204.652%201.36%204.15%203.788l-11.698%2056.621c-.732%203.542%203.979%205.473%205.943%202.437l1.313-2.028l72.516-144.72c1.215-2.423-.88-5.186-3.54-4.672l-25.505%204.922c-2.396.462-4.435-1.77-3.759-4.114l16.646-57.705c.677-2.35-1.37-4.583-3.769-4.113Z'%3e%3c/path%3e%3c/svg%3e";
-const increment = (_, count) => {
-  set(count, get(count) + 1);
-};
-var root$1 = /* @__PURE__ */ from_html(`<button> </button>`);
-function Counter($$anchor) {
-  let count = /* @__PURE__ */ state(0);
-  var button = root$1();
-  button.__click = [increment, count];
-  var text = child(button);
-  template_effect(() => set_text(text, `count is ${get(count) ?? ""}`));
-  append($$anchor, button);
-}
-delegate(["click"]);
-var root = /* @__PURE__ */ from_html(`<main><div><a href="https://vite.dev" target="_blank" rel="noreferrer"><img class="logo svelte-t46a5o" alt="Vite Logo"/></a> <a href="https://svelte.dev" target="_blank" rel="noreferrer"><img class="logo svelte svelte-t46a5o" alt="Svelte Logo"/></a></div> <h1>Vite + Svelte</h1> <div class="card"><!></div> <p>Check out <a href="https://github.com/sveltejs/kit#readme" target="_blank" rel="noreferrer">SvelteKit</a>, the official Svelte app framework powered by Vite!</p> <p class="read-the-docs svelte-t46a5o">Click on the Vite and Svelte logos to learn more</p></main>`);
+var root_1 = /* @__PURE__ */ from_html(`<tr><td> </td><td> </td><td> </td><td> </td></tr>`);
+var root = /* @__PURE__ */ from_html(`<h2 class="table-title">Predefined Connections</h2> <div class="table-container"><table><thead><tr><th>Name</th><th>Generation</th><th>Purpose</th><th>SSO</th></tr></thead><tbody></tbody></table></div>`, 1);
 function AddConnection($$anchor) {
-  var main = root();
-  var div = child(main);
-  var a = child(div);
-  var img = child(a);
-  var a_1 = sibling(a, 2);
-  var img_1 = child(a_1);
-  var div_1 = sibling(div, 4);
-  var node = child(div_1);
-  Counter(node);
-  template_effect(() => {
-    set_attribute(img, "src", viteLogo);
-    set_attribute(img_1, "src", svelteLogo);
+  let systems = proxy([
+    { name: "W4D", gen: "S4", category: "Logistics", sso: true },
+    { name: "W4T", gen: "S4", category: "Logistics", sso: true },
+    { name: "W4Q", gen: "S4", category: "Logistics", sso: true }
+  ]);
+  for (let i = 0; i < 40; i++) {
+    systems.push({ name: "W4Q", gen: "S4", category: "Logistics" + i, sso: true });
+  }
+  var fragment = root();
+  var div = sibling(first_child(fragment), 2);
+  var table = child(div);
+  var tbody = sibling(child(table));
+  each(tbody, 21, () => systems, index, ($$anchor2, system) => {
+    var tr = root_1();
+    var td = child(tr);
+    var text = child(td);
+    var td_1 = sibling(td);
+    var text_1 = child(td_1);
+    var td_2 = sibling(td_1);
+    var text_2 = child(td_2);
+    var td_3 = sibling(td_2);
+    var text_3 = child(td_3);
+    template_effect(() => {
+      set_text(text, get(system).name);
+      set_text(text_1, get(system).gen);
+      set_text(text_2, get(system).category);
+      set_text(text_3, get(system).sso ? "Yes" : "No");
+    });
+    append($$anchor2, tr);
   });
-  append($$anchor, main);
+  append($$anchor, fragment);
 }
 mount(AddConnection, {
   target: document.getElementById("app")

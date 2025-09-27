@@ -3,6 +3,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
+import tailwindcss from '@tailwindcss/vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -19,6 +20,7 @@ export default defineConfig({
 				csp: `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https://vite.dev https://svelte.dev https: data:; style-src 'unsafe-inline' {{cspSource}}; script-src 'nonce-{{nonce}}' 'unsafe-eval';">`,
 			},
 		}),
+		tailwindcss(),
 	],
 	build: {
 		rollupOptions: {

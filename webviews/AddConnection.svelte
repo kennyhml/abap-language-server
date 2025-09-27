@@ -1,49 +1,102 @@
 <script lang="ts">
-	import svelteLogo from './assets/svelte.svg';
-	import viteLogo from './assets/vite.svg';
-	import Counter from './lib/Counter.svelte';
+	import ConnectionList, { type System } from './lib/ConnectionList.svelte';
+	import InfoIcon from './assets/info.svg';
+
+	let systems: System[] = $state([
+		{
+			name: 'W4D',
+			description: 'Test',
+			supportsSSO: true,
+			router: 'ABAP',
+			messageServer: 'Some Server',
+		},
+	]);
+
+	for (let i = 0; i < 40; i++) {
+		systems.push({
+			name: `W4D (${i})`,
+			description: 'Test',
+			supportsSSO: true,
+			router: 'ABAP',
+			messageServer: 'Some Server',
+		});
+	}
 </script>
 
-<main>
-	<div>
-		<a href="https://vite.dev" target="_blank" rel="noreferrer">
-			<img src={viteLogo} class="logo" alt="Vite Logo" />
-		</a>
-		<a href="https://svelte.dev" target="_blank" rel="noreferrer">
-			<img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />
-		</a>
-	</div>
-	<h1>Vite + Svelte</h1>
+<main class="container">
+	<section class="predefined-connections">
+		<h2 class="table-title">Predefined Connections</h2>
+		<ConnectionList items={systems}></ConnectionList>
 
-	<div class="card">
-		<Counter />
-	</div>
+		<section class="info-section">
+			<img src={InfoIcon} alt="Information icon" />
+			<div class="text-block">
+				<h2>Predefined Systems can be distributed by your Administrator</h2>
+				<p>
+					These systems are derived from the systems available in the SAP Logon.
+					Please ask your System Administrator to provide you with the necessary
+					file and follow the instructions.
+				</p>
+			</div>
+		</section>
+	</section>
 
-	<p>
-		Check out <a
-			href="https://github.com/sveltejs/kit#readme"
-			target="_blank"
-			rel="noreferrer">SvelteKit</a
-		>, the official Svelte app framework powered by Vite!
-	</p>
-
-	<p class="read-the-docs">Click on the Vite and Svelte logos to learn more</p>
+	<section class="custom-connection">
+		<h2 class="table-title">Create Custom Connection</h2>
+	</section>
 </main>
 
+<!-- Left Side -->
+
 <style>
-	.logo {
-		height: 6em;
-		padding: 1.5em;
-		will-change: filter;
-		transition: filter 300ms;
+	.container {
+		display: flex;
+		height: 100vh;
 	}
-	.logo:hover {
-		filter: drop-shadow(0 0 2em #646cffaa);
+
+	.info-section {
+		padding-top: 10px;
+		display: flex;
+		align-items: center;
+		gap: 15px;
 	}
-	.logo.svelte:hover {
-		filter: drop-shadow(0 0 2em #ff3e00aa);
+
+	.info-section img {
+		height: 110px;
+		width: 110px;
 	}
-	.read-the-docs {
-		color: #888;
+
+	.text-block {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.text-block h2 {
+		font-size: 1.5em;
+		font-weight: bold;
+		margin: 0;
+	}
+
+	.text-block p {
+		font-size: 1.2em;
+		margin: 5px 0 0 0;
+	}
+
+	.predefined-connections {
+		flex: 1;
+		padding: 20px;
+	}
+
+	.custom-connection {
+		flex: 1;
+		padding: 20px;
+	}
+
+	.table-title {
+		font-size: 1.5rem;
+		font-weight: bold;
+		color: var(--vscode-editor-foreground);
+		font-family: Arial, sans-serif;
+		text-align: left;
 	}
 </style>
