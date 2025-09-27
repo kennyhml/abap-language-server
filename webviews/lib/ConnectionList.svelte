@@ -1,4 +1,6 @@
 <script lang="ts">
+	import TextInput from './TextInput.svelte';
+
 	export type System = {
 		id: number;
 		name: string;
@@ -11,7 +13,12 @@
 	let { systems, height }: { systems: System[]; height: number } = $props();
 
 	let searchFilter: string = $state('');
-	let selectedIndex = $state(-1);
+	let matchingSystems: System[] = $derived(getMatchingSystems());
+	let selectedSystem: number = $state(-1);
+
+	function getMatchingSystems() {
+		return systems.filter((system) => matchesFilter(system.name));
+	}
 
 	function matchesFilter(itemName: string): boolean {
 		if (!searchFilter) {
@@ -21,23 +28,20 @@
 	}
 
 	function onSystemSelected(system: System) {
-		selectedIndex = system.id;
+		selectedSystem = system.id;
 	}
 
-	function anyMatchesFilter(): boolean {
-		return (
-			systems.length > 0 &&
-			systems.find((system) =>
-				system.name.toLowerCase().includes(searchFilter.toLowerCase()),
-			) !== undefined
-		);
+	function noneMatchFilter(): boolean {
+		return systems.length !== 0 && matchingSystems.length === 0;
 	}
-
-	$inspect(selectedIndex, console.log);
 </script>
 
 <div class="content">
-	<input bind:value={searchFilter} placeholder="Search" />
+	<TextInput
+		bind:value={searchFilter}
+		placeholder="Search"
+		style="width: 60%; margin-bottom: 5px; border-radius: 2px"
+	/>
 
 	<div class="table-container" style="height: {height}vh;">
 		<table>
@@ -51,11 +55,11 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each systems as system, i}
+				{#each matchingSystems as system}
 					{#if matchesFilter(system.name)}
 						<tr
 							onclick={() => onSystemSelected(system)}
-							class:highlighted={i === selectedIndex}
+							class:highlighted={system.id === selectedSystem}
 						>
 							<td>{system.name}</td>
 							<td>{system.description}</td>
@@ -68,7 +72,7 @@
 			</tbody>
 		</table>
 
-		{#if !anyMatchesFilter()}
+		{#if noneMatchFilter()}
 			<p class="not-found">
 				No System matches this filter - please check again.
 			</p>
@@ -124,22 +128,8 @@
 		border-right: 1px solid var(--vscode-inputOption-activeBorder);
 	}
 
-	.content input {
-		width: 60%;
-		margin-bottom: 5px;
-		background-color: var(--vscode-input-background);
-		color: var(--vscode-input-foreground);
-		border: 1px solid var(--vscode-dropdown-border);
-	}
-
-	.content input:focus {
-		border-color: var(--vscode-inputOption-activeBorder);
-		outline: none;
-	}
-
 	table {
 		width: 100%;
-		border-radius: 8px;
 		background-color: var(--vscode-editorInlayHint-background);
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 		font-family: Arial, sans-serif;
