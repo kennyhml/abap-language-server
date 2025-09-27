@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ConnectionList, { type System } from './lib/ConnectionList.svelte';
 	import InfoIcon from './assets/info.svg';
+	import Dropdown from './lib/Dropdown.svelte';
 
 	let height = $state(70);
 
@@ -50,11 +51,11 @@
 	</section>
 
 	<section class="custom-connection">
-		<h2 class="table-title">Create Custom Connection</h2>
+		<h2 class="table-title">Customize Connection</h2>
+		<p>Configure a connection from scratch or modify a predefined one.</p>
+		<Dropdown></Dropdown>
 	</section>
 </main>
-
-<!-- Left Side -->
 
 <style>
 	.container {
