@@ -4,15 +4,7 @@
 
 	let height = $state(70);
 
-	let systems: System[] = $state([
-		{
-			name: 'W4D',
-			description: 'Test',
-			supportsSSO: true,
-			router: 'ABAP',
-			messageServer: 'Some Server',
-		},
-	]);
+	let systems: System[] = $state([]);
 
 	$effect(() => {
 		const mediaQuery = window.matchMedia('(max-width: 1000px)');
@@ -29,6 +21,7 @@
 
 	for (let i = 0; i < 40; i++) {
 		systems.push({
+			id: i,
 			name: `W4D (${i})`,
 			description: 'Test',
 			supportsSSO: true,
@@ -41,7 +34,7 @@
 <main class="container">
 	<section class="predefined-connections">
 		<h2 class="table-title">Predefined Connections</h2>
-		<ConnectionList items={systems} {height}></ConnectionList>
+		<ConnectionList {systems} {height}></ConnectionList>
 
 		<section class="info-section">
 			<img src={InfoIcon} alt="Information icon" />
