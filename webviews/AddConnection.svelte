@@ -2,6 +2,8 @@
 	import ConnectionList, { type System } from './lib/ConnectionList.svelte';
 	import InfoIcon from './assets/info.svg';
 
+	let height = $state(70);
+
 	let systems: System[] = $state([
 		{
 			name: 'W4D',
@@ -11,6 +13,19 @@
 			messageServer: 'Some Server',
 		},
 	]);
+
+	$effect(() => {
+		const mediaQuery = window.matchMedia('(max-width: 1000px)');
+
+		const updateHeight = () => {
+			height = mediaQuery.matches ? 30 : 70;
+		};
+
+		updateHeight();
+		mediaQuery.addEventListener('change', updateHeight);
+
+		return () => mediaQuery.removeEventListener('change', updateHeight);
+	});
 
 	for (let i = 0; i < 40; i++) {
 		systems.push({
@@ -26,7 +41,7 @@
 <main class="container">
 	<section class="predefined-connections">
 		<h2 class="table-title">Predefined Connections</h2>
-		<ConnectionList items={systems}></ConnectionList>
+		<ConnectionList items={systems} {height}></ConnectionList>
 
 		<section class="info-section">
 			<img src={InfoIcon} alt="Information icon" />
@@ -51,7 +66,7 @@
 <style>
 	.container {
 		display: flex;
-		height: 100vh;
+		flex-direction: row;
 	}
 
 	.info-section {
@@ -98,5 +113,11 @@
 		color: var(--vscode-editor-foreground);
 		font-family: Arial, sans-serif;
 		text-align: left;
+	}
+
+	@media (max-width: 1000px) {
+		.container {
+			flex-direction: column;
+		}
 	}
 </style>

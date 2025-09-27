@@ -9,13 +9,13 @@
 
 	let searchFilter: string = $state('');
 
-	let { items }: { items: System[] } = $props();
+	let { items, height }: { items: System[]; height: number } = $props();
 </script>
 
 <div class="content">
 	<input bind:value={searchFilter} placeholder="Search" />
 
-	<div class="table-container">
+	<div class="table-container" style="height: {height}vh;">
 		<table>
 			<thead>
 				<tr>
@@ -43,7 +43,6 @@
 
 <style>
 	.table-container {
-		height: 70vh;
 		overflow-y: auto;
 	}
 
