@@ -20,7 +20,12 @@
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true,
-		"noImplicitAny": false
+		"noImplicitAny": false,
+		"paths": {
+			"types/*": [
+				"./types/*"
+			]
+		}
 	},
 	"include": [
 		"src",

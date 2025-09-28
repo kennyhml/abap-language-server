@@ -1,10 +1,27 @@
 <script lang="ts">
+	import {
+		ConnectionTypes,
+		SecurityLevel,
+		type Connection,
+	} from 'types/connection';
 	import ConnectionForm from './lib/ConnectionForm.svelte';
 	import ConnectionList, { type System } from './lib/ConnectionList.svelte';
 
 	let height = $state(70);
 
 	let systems: System[] = $state([]);
+
+	let mockConnectionData: Connection = {
+		systemId: 'W4D',
+		connectionType: ConnectionTypes.CustomApplicationServer,
+		applicationServer: 'test',
+		instanceNumber: '00',
+		sapRouterString: 'Rawr',
+		sncEnabled: true,
+		ssoEnabled: true,
+		sncName: '',
+		sncLevel: SecurityLevel.Encrypted,
+	};
 
 	$effect(() => {
 		const mediaQuery = window.matchMedia('(max-width: 1000px)');
@@ -51,7 +68,7 @@
 			the provided selection.
 		</p>
 		<hr />
-		<ConnectionForm></ConnectionForm>
+		<ConnectionForm connectionData={mockConnectionData}></ConnectionForm>
 	</section>
 </main>
 

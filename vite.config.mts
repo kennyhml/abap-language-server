@@ -22,6 +22,11 @@ export default defineConfig({
 		}),
 		tailwindcss(),
 	],
+	resolve: {
+		alias: {
+			types: resolve(__dirname, 'types'),
+		},
+	},
 	build: {
 		rollupOptions: {
 			input: {

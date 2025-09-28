@@ -2,38 +2,44 @@
 	import Dropdown from './Dropdown.svelte';
 	import TextInput from './TextInput.svelte';
 
+	import * as connection from 'types/connection';
+	import {
+		type Connection,
+		ConnectionTypes,
+		SecurityLevel,
+	} from 'types/connection';
+
+	let { connectionData }: { connectionData: Connection } = $props();
+
 	const connectionTypes = [
 		{
-			value: 'group',
+			value: ConnectionTypes.GroupSelection,
 			name: 'Group Selection',
 		},
 		{
-			value: 'custom',
+			value: ConnectionTypes.CustomApplicationServer,
 			name: 'Custom Application Server',
 		},
 	];
 
 	const sncLevels = [
 		{
-			value: 'highest',
+			value: SecurityLevel.Highest,
 			name: 'Highest available security level',
 		},
 		{
-			value: 'encrypted',
+			value: SecurityLevel.Encrypted,
 			name: 'Encryption ensured',
 		},
 		{
-			value: 'signed',
+			value: SecurityLevel.Signed,
 			name: 'Integrity ensured',
 		},
 		{
-			value: 'authed',
+			value: SecurityLevel.Authed,
 			name: 'User agent authentication ensured',
 		},
 	];
-
-	let connectionType = $state('group');
-	let sncLevel = $state('highest');
 </script>
 
 <section class="container">
@@ -49,13 +55,13 @@
 			<div class="input-row">
 				<label class="label" for="">Connection Type</label>
 				<Dropdown
-					bind:selectedValue={connectionType}
+					bind:selectedValue={connectionData.connectionType}
 					options={connectionTypes}
 					style="flex-grow: 1"
 				></Dropdown>
 			</div>
 
-			{#if connectionType === 'group'}
+			{#if connection.isGroupSelection(connectionData)}
 				<div class="input-row">
 					<label class="label" for="">Message Server*</label>
 					<TextInput style="flex-grow: 1" />
@@ -103,7 +109,7 @@
 			<div class="input-row">
 				<label class="label" for="">SNC Security Level</label>
 				<Dropdown
-					bind:selectedValue={sncLevel}
+					bind:selectedValue={connectionData.sncLevel}
 					options={sncLevels}
 					style="flex-grow: 1"
 				></Dropdown>
