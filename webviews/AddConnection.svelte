@@ -1,6 +1,6 @@
 <script lang="ts">
+	import ConnectionForm from './lib/ConnectionForm.svelte';
 	import ConnectionList, { type System } from './lib/ConnectionList.svelte';
-	import Dropdown from './lib/Dropdown.svelte';
 
 	let height = $state(70);
 
@@ -35,8 +35,7 @@
 	<section class="predefined-connections">
 		<h2 class="table-title">Automatically detected Systems</h2>
 		<span>
-			SAP Logon Pad system connections are automatically detected from the
-			installation files or a <a
+			SAP Logon system connections are detected from the installation files or a <a
 				href="https://github.com/kennyhml"
 				target="_blank">manually specified location</a
 			>.
@@ -52,14 +51,15 @@
 			the provided selection.
 		</p>
 		<hr />
-		<Dropdown></Dropdown>
+		<ConnectionForm></ConnectionForm>
 	</section>
 </main>
 
 <style>
 	.container {
 		display: flex;
-		flex-direction: row;
+		margin: 20px 20px 0;
+		gap: 50px;
 	}
 
 	hr {
@@ -70,13 +70,11 @@
 	}
 
 	.predefined-connections {
-		flex: 1;
-		padding: 20px;
+		flex: 1.3 1 0;
 	}
 
 	.custom-connection {
-		flex: 1;
-		padding: 20px;
+		flex: 1 1 0;
 	}
 
 	.table-title {

@@ -56,18 +56,16 @@
 			</thead>
 			<tbody>
 				{#each matchingSystems as system}
-					{#if matchesFilter(system.name)}
-						<tr
-							onclick={() => onSystemSelected(system)}
-							class:highlighted={system.id === selectedSystem}
-						>
-							<td>{system.name}</td>
-							<td>{system.description}</td>
-							<td>{system.messageServer}</td>
-							<td>{system.supportsSSO ? 'Yes' : 'No'}</td>
-							<td>{system.router}</td>
-						</tr>
-					{/if}
+					<tr
+						onclick={() => onSystemSelected(system)}
+						class:highlighted={system.id === selectedSystem}
+					>
+						<td>{system.name}</td>
+						<td>{system.description}</td>
+						<td>{system.messageServer}</td>
+						<td>{system.supportsSSO ? 'Yes' : 'No'}</td>
+						<td>{system.router}</td>
+					</tr>
 				{/each}
 			</tbody>
 		</table>
@@ -130,7 +128,6 @@
 
 	table {
 		width: 100%;
-		background-color: var(--vscode-editorInlayHint-background);
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 		font-family: Arial, sans-serif;
 		table-layout: fixed;
@@ -138,8 +135,11 @@
 		border-collapse: separate;
 	}
 
+	tr:nth-child(odd) {
+		background-color: #2d2d2d;
+	}
 	tr:nth-child(even) {
-		background-color: var(--vscode-list-inactiveSelectionBackground);
+		background-color: #3c3c3c;
 	}
 
 	tr:hover {
