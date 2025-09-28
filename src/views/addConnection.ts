@@ -1,3 +1,8 @@
+import {
+	ConnectionTypes,
+	SecurityLevel,
+	type Connection,
+} from 'types/connection';
 import type { Disposable, ExtensionContext, WebviewPanel } from 'vscode';
 import * as vscode from 'vscode';
 import { ViewColumn, window } from 'vscode';
@@ -18,6 +23,12 @@ export class AddConnectionPanel {
 			context,
 			inputName: 'addConnection',
 		});
+		this._panel.webview.onDidReceiveMessage(
+			(message: any) => {},
+			undefined,
+			this._disposables,
+		);
+		this.initializeAvailableConnections();
 	}
 
 	public static render(context: ExtensionContext) {
@@ -33,6 +44,7 @@ export class AddConnectionPanel {
 					localResourceRoots: [
 						vscode.Uri.joinPath(context.extensionUri, 'dist'),
 					],
+					retainContextWhenHidden: true,
 				},
 			);
 			AddConnectionPanel.currentPanel = new AddConnectionPanel(panel, context);
@@ -55,5 +67,28 @@ export class AddConnectionPanel {
 				disposable.dispose();
 			}
 		}
+	}
+
+	private initializeAvailableConnections() {
+		let connections: Connection[] = [];
+		for (let i = 0; i < 30; i++) {
+			connections.push({
+				systemId: `W${i}D`,
+				name: '',
+				displayName: '',
+				description: '',
+				connectionType: ConnectionTypes.CustomApplicationServer,
+				applicationServer: '',
+				instanceNumber: '',
+				sapRouterString: '',
+				sncEnabled: true,
+				ssoEnabled: true,
+				sncName: '',
+				sncLevel: SecurityLevel.Encrypted,
+				keepSynced: true,
+			});
+		}
+
+		this._panel.webview.postMessage({ type: 'init', data: { connections } });
 	}
 }

@@ -7,7 +7,7 @@
 	import SSODisabledIcon from '../assets/ssoDisabled.svg';
 
 	let {
-		connections,
+		connections = $bindable(),
 		onSelectionChange,
 	}: {
 		connections: Connection[];
@@ -16,24 +16,31 @@
 
 	type UniqueConnection = Connection & { id: number };
 
-	let mappedConnections = connections
-		.sort((a, b) => a.systemId.localeCompare(b.systemId))
-		.map((v, i) => ({ ...v, id: i }));
+	let mappedConnections = $derived(
+		connections
+			.toSorted((a, b) => a.systemId.localeCompare(b.systemId))
+			.map((v, i) => ({ ...v, id: i })),
+	);
 
 	let searchFilter: string = $state('');
-	let matchingEntries = $derived(getMatchingConnections());
+	let matchingEntries = $derived(
+		getMatchingConnections(mappedConnections, searchFilter),
+	);
 
 	let selectedId: number = $state(-1);
 
-	function getMatchingConnections(): UniqueConnection[] {
-		if (!searchFilter) {
-			return mappedConnections;
+	function getMatchingConnections(
+		conns: UniqueConnection[],
+		filter: string,
+	): UniqueConnection[] {
+		if (!filter) {
+			return conns;
 		}
-		let filter = searchFilter.toLowerCase();
-		return mappedConnections.filter(
+		let lowerFilter = filter.toLowerCase();
+		return conns.filter(
 			(conn) =>
-				conn.systemId.toLowerCase().includes(filter) ||
-				conn.name.toLowerCase().includes(filter),
+				conn.systemId.toLowerCase().includes(lowerFilter) ||
+				conn.name.toLowerCase().includes(lowerFilter),
 		);
 	}
 
@@ -70,7 +77,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each matchingEntries as conn}
+				{#each matchingEntries as conn (conn.id)}
 					<tr
 						onclick={() => onSelected(conn)}
 						class:highlighted={conn.id === selectedId}

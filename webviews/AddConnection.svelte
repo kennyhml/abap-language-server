@@ -8,34 +8,32 @@
 	import ConnectionList from './lib/ConnectionList.svelte';
 
 	let connections: Connection[] = $state([]);
-
 	let formConnectionData: Connection = $state({
-		systemId: 'W4D',
-		name: 'W4D Logistics',
-		displayName: 'W4D',
-		description: 'This is a great system yes many fun here',
+		systemId: '',
+		name: '',
+		displayName: '',
+		description: '',
 		connectionType: ConnectionTypes.CustomApplicationServer,
-		applicationServer: 'test',
-		instanceNumber: '00',
-		sapRouterString: 'This is a router string nobody understands',
+		applicationServer: '',
+		instanceNumber: '',
+		sapRouterString: '',
 		sncEnabled: true,
 		ssoEnabled: true,
 		sncName: '',
 		sncLevel: SecurityLevel.Encrypted,
+		keepSynced: true,
 	});
 
 	function onSelectionChange(connection: Connection) {
 		formConnectionData = connection;
 	}
 
-	for (let i = 0; i < 40; i++) {
-		connections.push({
-			description: 'Test ' + i,
-			...formConnectionData,
-		});
-	}
-	connections[4].sncEnabled = false;
-	connections[4].ssoEnabled = false;
+	window.addEventListener('message', (event: any) => {
+		if (event.data?.type === 'init') {
+			connections = event.data.data.connections as Connection[];
+			console.log('Connections updated.');
+		}
+	});
 </script>
 
 <main class="container">
@@ -48,7 +46,7 @@
 			>.
 		</span>
 		<hr />
-		<ConnectionList {connections} {onSelectionChange}></ConnectionList>
+		<ConnectionList bind:connections {onSelectionChange}></ConnectionList>
 	</section>
 
 	<section class="custom-connection">
