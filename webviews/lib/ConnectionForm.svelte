@@ -9,7 +9,8 @@
 		SecurityLevel,
 	} from 'types/connection';
 
-	let { connectionData }: { connectionData: Connection } = $props();
+	let { connectionData = $bindable() }: { connectionData: Connection } =
+		$props();
 
 	const connectionTypes = [
 		{
@@ -50,7 +51,7 @@
 		<div class="input-group">
 			<div class="input-row">
 				<label class="label" for="">System ID*</label>
-				<TextInput style="flex-grow: 1" />
+				<TextInput style="flex-grow: 1" bind:value={connectionData.systemId} />
 			</div>
 			<div class="input-row">
 				<label class="label" for="">Connection Type</label>
@@ -64,37 +65,58 @@
 			{#if connection.isGroupSelection(connectionData)}
 				<div class="input-row">
 					<label class="label" for="">Message Server*</label>
-					<TextInput style="flex-grow: 1" />
+					<TextInput
+						style="flex-grow: 1"
+						bind:value={connectionData.messageServer}
+					/>
 				</div>
 				<div class="input-row">
 					<label class="label" for="">Group*</label>
-					<TextInput style="flex-grow: 1" />
+					<TextInput style="flex-grow: 1" bind:value={connectionData.group} />
 				</div>
 				<div class="input-row">
 					<label class="label" for="">Message Server Port</label>
-					<TextInput style="flex-grow: 1" />
+					<TextInput
+						style="flex-grow: 1"
+						bind:value={connectionData.messageServerPort}
+					/>
 				</div>
 			{:else}
 				<div class="input-row">
 					<label class="label" for="">Application Server*</label>
-					<TextInput style="flex-grow: 1" />
+					<TextInput
+						style="flex-grow: 1"
+						bind:value={connectionData.applicationServer}
+					/>
 				</div>
 				<div class="input-row">
 					<label class="label" for="">Instance Number*</label>
-					<TextInput style="flex-grow: 1" />
+					<TextInput
+						style="flex-grow: 1"
+						bind:value={connectionData.instanceNumber}
+					/>
 				</div>
 				<div class="input-row">
 					<label class="label" for="">RFC Gateway Server</label>
-					<TextInput style="flex-grow: 1" />
+					<TextInput
+						style="flex-grow: 1"
+						bind:value={connectionData.rfcGatewayServer}
+					/>
 				</div>
 				<div class="input-row">
 					<label class="label" for="">RFC Gateway Server Port</label>
-					<TextInput style="flex-grow: 1" />
+					<TextInput
+						style="flex-grow: 1"
+						bind:value={connectionData.rfcGatewayServerPort}
+					/>
 				</div>
 			{/if}
 			<div class="input-row">
 				<label class="label" for="">SAProuter Connection String</label>
-				<TextInput style="flex-grow: 1" />
+				<TextInput
+					style="flex-grow: 1"
+					bind:value={connectionData.sapRouterString}
+				/>
 			</div>
 		</div>
 	</section>
@@ -117,7 +139,7 @@
 
 			<div class="input-row">
 				<label class="label" for="">SNC Name*</label>
-				<TextInput style="flex-grow: 1" />
+				<TextInput style="flex-grow: 1" bind:value={connectionData.sncName} />
 			</div>
 		</div>
 	</section>

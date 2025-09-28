@@ -13,11 +13,15 @@ export const SecurityLevel = {
 export type ConnectionType = keyof typeof ConnectionTypes;
 
 type CommonProperties = {
+	name: string;
+	displayName?: string;
+	description?: string;
 	systemId: string;
 	sncEnabled: boolean;
 	ssoEnabled: boolean;
 	sncName: string;
 	sncLevel: keyof typeof SecurityLevel;
+	sapRouterString?: string;
 };
 
 type GroupSelectionProperties = {
@@ -33,7 +37,6 @@ type ApplicationServerProperties = {
 	instanceNumber: string;
 	rfcGatewayServer?: string;
 	rfcGatewayServerPort?: number;
-	sapRouterString?: string;
 };
 
 export type Connection =

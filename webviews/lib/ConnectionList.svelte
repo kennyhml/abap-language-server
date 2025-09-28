@@ -1,38 +1,52 @@
 <script lang="ts">
+	import type { Connection } from 'types/connection';
 	import TextInput from './TextInput.svelte';
+	import SecureIcon from '../assets/secure.svg';
+	import InsecureIcon from '../assets/insecure.svg';
+	import SSOEnabledIcon from '../assets/ssoEnabled.svg';
+	import SSODisabledIcon from '../assets/ssoDisabled.svg';
 
-	export type System = {
-		id: number;
-		name: string;
-		description: string;
-		supportsSSO: boolean;
-		router: string;
-		messageServer: string;
-	};
+	let {
+		connections,
+		onSelectionChange,
+	}: {
+		connections: Connection[];
+		onSelectionChange: (connection: Connection) => void;
+	} = $props();
 
-	let { systems, height }: { systems: System[]; height: number } = $props();
+	type UniqueConnection = Connection & { id: number };
+
+	let mappedConnections = connections
+		.sort((a, b) => a.systemId.localeCompare(b.systemId))
+		.map((v, i) => ({ ...v, id: i }));
 
 	let searchFilter: string = $state('');
-	let matchingSystems: System[] = $derived(getMatchingSystems());
-	let selectedSystem: number = $state(-1);
+	let matchingEntries = $derived(getMatchingConnections());
 
-	function getMatchingSystems() {
-		return systems.filter((system) => matchesFilter(system.name));
-	}
+	let selectedId: number = $state(-1);
 
-	function matchesFilter(itemName: string): boolean {
+	function getMatchingConnections(): UniqueConnection[] {
 		if (!searchFilter) {
-			return true;
+			return mappedConnections;
 		}
-		return itemName.toLowerCase().includes(searchFilter.toLowerCase());
+		let filter = searchFilter.toLowerCase();
+		return mappedConnections.filter(
+			(conn) =>
+				conn.systemId.toLowerCase().includes(filter) ||
+				conn.name.toLowerCase().includes(filter),
+		);
 	}
 
-	function onSystemSelected(system: System) {
-		selectedSystem = system.id;
+	function onSelected(connection: UniqueConnection) {
+		if (selectedId !== connection.id) {
+			selectedId = connection.id;
+			const { id, ...conn } = connection;
+			onSelectionChange(conn);
+		}
 	}
 
 	function noneMatchFilter(): boolean {
-		return systems.length !== 0 && matchingSystems.length === 0;
+		return mappedConnections.length !== 0 && matchingEntries.length === 0;
 	}
 </script>
 
@@ -43,28 +57,38 @@
 		style="width: 60%; margin-bottom: 5px; border-radius: 2px"
 	/>
 
-	<div class="table-container" style="height: {height}vh;">
+	<div class="table-container">
 		<table>
 			<thead>
 				<tr>
+					<th>SID</th>
 					<th>Name</th>
 					<th>Description</th>
-					<th>Message Server</th>
+					<th>SNC</th>
 					<th>SSO</th>
 					<th>Router</th>
 				</tr>
 			</thead>
 			<tbody>
-				{#each matchingSystems as system}
+				{#each matchingEntries as conn}
 					<tr
-						onclick={() => onSystemSelected(system)}
-						class:highlighted={system.id === selectedSystem}
+						onclick={() => onSelected(conn)}
+						class:highlighted={conn.id === selectedId}
 					>
-						<td>{system.name}</td>
-						<td>{system.description}</td>
-						<td>{system.messageServer}</td>
-						<td>{system.supportsSSO ? 'Yes' : 'No'}</td>
-						<td>{system.router}</td>
+						<td>{conn.systemId}</td>
+						<td>{conn.name}</td>
+						<td>{conn.description}</td>
+						{#if conn.sncEnabled}
+							<td class="icon"><img src={SecureIcon} alt="Secure" /></td>
+						{:else}
+							<td class="icon"><img src={InsecureIcon} alt="Insecure" /></td>
+						{/if}
+						{#if conn.ssoEnabled}
+							<td class="icon"><img src={SSOEnabledIcon} alt="Secure" /></td>
+						{:else}
+							<td class="icon"><img src={SSODisabledIcon} alt="Insecure" /></td>
+						{/if}
+						<td>{conn.sapRouterString}</td>
 					</tr>
 				{/each}
 			</tbody>
@@ -72,7 +96,7 @@
 
 		{#if noneMatchFilter()}
 			<p class="not-found">
-				No System matches this filter - please check again.
+				No connection matches this filter - please check again.
 			</p>
 		{/if}
 	</div>
@@ -81,6 +105,19 @@
 <style>
 	.table-container {
 		overflow-y: auto;
+		max-height: 70vh;
+	}
+
+	.icon {
+		text-align: center;
+		vertical-align: bottom;
+	}
+
+	.icon img {
+		margin-top: 2px;
+		margin-bottom: -3px;
+		width: 18px;
+		height: 18px;
 	}
 
 	.not-found {
@@ -101,6 +138,7 @@
 		text-align: left;
 		border-left: 1px solid var(--vscode-sideBar-border);
 		border-bottom: 1px solid var(--vscode-sideBar-border);
+		white-space: nowrap;
 
 		color: var(--vscode-editor-foreground);
 	}
@@ -130,7 +168,7 @@
 		width: 100%;
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 		font-family: Arial, sans-serif;
-		table-layout: fixed;
+		table-layout: auto;
 		border-spacing: 0;
 		border-collapse: separate;
 	}

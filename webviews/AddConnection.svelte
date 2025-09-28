@@ -5,23 +5,30 @@
 		type Connection,
 	} from 'types/connection';
 	import ConnectionForm from './lib/ConnectionForm.svelte';
-	import ConnectionList, { type System } from './lib/ConnectionList.svelte';
+	import ConnectionList from './lib/ConnectionList.svelte';
 
 	let height = $state(70);
 
-	let systems: System[] = $state([]);
+	let connections: Connection[] = $state([]);
 
-	let mockConnectionData: Connection = {
+	let formConnectionData: Connection = $state({
 		systemId: 'W4D',
+		name: 'W4D Logistics',
+		displayName: 'W4D',
+		description: 'This is a great system yes many fun here',
 		connectionType: ConnectionTypes.CustomApplicationServer,
 		applicationServer: 'test',
 		instanceNumber: '00',
-		sapRouterString: 'Rawr',
+		sapRouterString: 'This is a router string nobody understands',
 		sncEnabled: true,
 		ssoEnabled: true,
 		sncName: '',
 		sncLevel: SecurityLevel.Encrypted,
-	};
+	});
+
+	function onSelectionChange(connection: Connection) {
+		formConnectionData = connection;
+	}
 
 	$effect(() => {
 		const mediaQuery = window.matchMedia('(max-width: 1000px)');
@@ -37,15 +44,13 @@
 	});
 
 	for (let i = 0; i < 40; i++) {
-		systems.push({
-			id: i,
-			name: `W4D (${i})`,
-			description: 'Test',
-			supportsSSO: true,
-			router: 'ABAP',
-			messageServer: 'Some Server',
+		connections.push({
+			description: 'Test ' + i,
+			...formConnectionData,
 		});
 	}
+	connections[4].sncEnabled = false;
+	connections[4].ssoEnabled = false;
 </script>
 
 <main class="container">
@@ -58,7 +63,7 @@
 			>.
 		</span>
 		<hr />
-		<ConnectionList {systems} {height}></ConnectionList>
+		<ConnectionList {connections} {onSelectionChange}></ConnectionList>
 	</section>
 
 	<section class="custom-connection">
@@ -68,14 +73,14 @@
 			the provided selection.
 		</p>
 		<hr />
-		<ConnectionForm connectionData={mockConnectionData}></ConnectionForm>
+		<ConnectionForm bind:connectionData={formConnectionData}></ConnectionForm>
 	</section>
 </main>
 
 <style>
 	.container {
 		display: flex;
-		margin: 20px 20px 0;
+		margin: 40px 20px;
 		gap: 50px;
 	}
 
