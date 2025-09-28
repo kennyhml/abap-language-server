@@ -16,7 +16,7 @@
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
 		"skipLibCheck": true,
-		"noEmit": true, // Adjust based on whether you need emission
+		"noEmit": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true,
@@ -25,11 +25,14 @@
 			"types/*": [
 				"./types/*"
 			]
-		}
+		},
 	},
 	"include": [
-		"src",
+		"src/**/*",
 		"webviews",
 		"vite.config.mts"
+	],
+	"exclude": [
+		"node_modules"
 	]
 }

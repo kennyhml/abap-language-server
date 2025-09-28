@@ -7,8 +7,6 @@
 	import ConnectionForm from './lib/ConnectionForm.svelte';
 	import ConnectionList from './lib/ConnectionList.svelte';
 
-	let height = $state(70);
-
 	let connections: Connection[] = $state([]);
 
 	let formConnectionData: Connection = $state({
@@ -29,19 +27,6 @@
 	function onSelectionChange(connection: Connection) {
 		formConnectionData = connection;
 	}
-
-	$effect(() => {
-		const mediaQuery = window.matchMedia('(max-width: 1000px)');
-
-		const updateHeight = () => {
-			height = mediaQuery.matches ? 30 : 70;
-		};
-
-		updateHeight();
-		mediaQuery.addEventListener('change', updateHeight);
-
-		return () => mediaQuery.removeEventListener('change', updateHeight);
-	});
 
 	for (let i = 0; i < 40; i++) {
 		connections.push({

@@ -65,10 +65,10 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "vscode:prepublish": "npm run compile",
-    "watch": "tsc -watch -p ./",
+    "watch": "tsc -watch -p ./ --diagnostics",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"

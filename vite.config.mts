@@ -15,6 +15,7 @@ export default defineConfig({
 			extension: {
 				sourcemap: 'inline',
 				entry: 'src/index.ts',
+				watchFiles: './src',
 			},
 			webview: {
 				csp: `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https://vite.dev https://svelte.dev https: data:; style-src 'unsafe-inline' {{cspSource}}; script-src 'nonce-{{nonce}}' 'unsafe-eval';">`,

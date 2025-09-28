@@ -94,7 +94,13 @@
 			</tbody>
 		</table>
 
-		{#if noneMatchFilter()}
+		{#if connections.length === 0}
+			<p class="not-found">
+				No connections found. Follow <a href="https://github.com/kennyhml"
+					>the instructions</a
+				> to add a connection provider.
+			</p>
+		{:else if noneMatchFilter()}
 			<p class="not-found">
 				No connection matches this filter - please check again.
 			</p>
