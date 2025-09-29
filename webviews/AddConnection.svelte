@@ -30,6 +30,10 @@
     wasPredefined: false,
   });
 
+  async function refreshAvailableConnections() {
+    connections = await getAvailableConnections();
+  }
+
   function getAvailableConnections(): Promise<Connection[]> {
     let interactionId = Math.random().toString(36).substring(2);
     vscode.postMessage({
@@ -107,7 +111,11 @@
       >.
     </span>
     <hr />
-    <ConnectionList bind:connections {onSelectionChange}></ConnectionList>
+    <ConnectionList
+      bind:connections
+      {onSelectionChange}
+      onRefreshRequested={refreshAvailableConnections}
+    ></ConnectionList>
   </section>
 
   <section class="custom-connection">
