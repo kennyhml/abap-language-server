@@ -24,7 +24,6 @@ export class AddConnectionPanel {
 			inputName: 'addConnection',
 		});
 
-		// vscode.postMessage({ type: 'onSubmit', connection: conn, interactionId });
 		this._panel.webview.onDidReceiveMessage(
 			(message: any) => {
 				if (message.type === 'onSubmit') {
@@ -34,12 +33,18 @@ export class AddConnectionPanel {
 						interactionId,
 						data: { foo: 'bar', ...conn },
 					});
+				} else if (message.type === 'getConnections') {
+					let interactionId = message.interactionId as string;
+					this._panel.webview.postMessage({
+						interactionId,
+						data: this.getAvailableConnections()
+					});
+
 				}
 			},
 			undefined,
 			this._disposables,
 		);
-		this.initializeAvailableConnections();
 	}
 
 	public static render(context: ExtensionContext) {
@@ -80,7 +85,7 @@ export class AddConnectionPanel {
 		}
 	}
 
-	private initializeAvailableConnections() {
+	private getAvailableConnections() {
 		let connections: Connection[] = [];
 		for (let i = 0; i < 30; i++) {
 			connections.push({
@@ -100,7 +105,6 @@ export class AddConnectionPanel {
 				wasPredefined: true,
 			});
 		}
-
-		this._panel.webview.postMessage({ type: 'init', data: { connections } });
+		return connections;
 	}
 }
