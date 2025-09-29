@@ -2,18 +2,16 @@
 	import Dropdown from './Dropdown.svelte';
 	import TextInput from './TextInput.svelte';
 	import WarningIcon from '../assets/warning.svg';
-
+	import ErrorIcon from '../assets/error.svg';
+	import SystemAddedIcon from '../assets/systemAdded.svg';
 	import * as connection from 'types/connection';
 	import {
 		type Connection,
+		type SubmissionResult,
 		ConnectionTypes,
 		SecurityLevel,
 	} from 'types/connection';
-
-	export type SubmissionResult = {
-		success: boolean;
-		message: string;
-	};
+	import VSCheckBox from './common/VSCheckBox.svelte';
 
 	type Props = {
 		connectionData: Connection;
@@ -22,6 +20,10 @@
 	};
 
 	let { connectionData = $bindable(), onSubmit, onTest }: Props = $props();
+	let showMissingFields = $state(false);
+
+	let errorMessage = $state('');
+	let successMessage = $state('');
 
 	const connectionTypes = [
 		{
@@ -52,6 +54,64 @@
 			name: 'User agent authentication ensured',
 		},
 	];
+
+	/**
+	 * Whether all the required fields are filled taking into account
+	 * the difference between connection types.
+	 * @param data
+	 */
+	function allRequiredFieldsFilled(data: Connection) {
+		if (!data.systemId || (data.sncEnabled && !data.sncName)) {
+			return false;
+		}
+		// Different props required based on the connection type
+		if (connection.isApplicationServer(data)) {
+			return data.applicationServer && data.instanceNumber;
+		} else {
+			return data.group && data.messageServer;
+		}
+	}
+
+	/**
+	 * Checks whether all required fields are filled and only then passes
+	 * the callback to the outer framework.
+	 *
+	 * If not all required fields are filled, triggers highlighting on the
+	 * missing fields and displays an error message.
+	 */
+	async function onSubmitButtonPressed() {
+		if (!allRequiredFieldsFilled(connectionData)) {
+			showMissingFields = true;
+			errorMessage = 'Fill in the mandatory connection parameters.';
+			successMessage = '';
+			return;
+		}
+		showMissingFields = false;
+		errorMessage = '';
+		let result = await onSubmit(connectionData);
+		console.log('Submission result: ', result);
+		if (result.success) {
+			connectionData = {
+				systemId: '',
+				name: '',
+				displayName: '',
+				description: '',
+				connectionType: ConnectionTypes.CustomApplicationServer,
+				applicationServer: '',
+				instanceNumber: '',
+				sapRouterString: '',
+				sncEnabled: true,
+				ssoEnabled: true,
+				sncName: '',
+				sncLevel: SecurityLevel.Encrypted,
+				keepSynced: false,
+				wasPredefined: false,
+			};
+			successMessage = result.message;
+		} else {
+			errorMessage = result.message;
+		}
+	}
 </script>
 
 <section class="container">
@@ -62,7 +122,11 @@
 		<div class="input-group">
 			<div class="input-row">
 				<label class="label" for="">System ID*</label>
-				<TextInput style="flex-grow: 1" bind:value={connectionData.systemId} />
+				<TextInput
+					style="flex-grow: 1"
+					bind:value={connectionData.systemId}
+					bind:showRequired={showMissingFields}
+				/>
 			</div>
 			<div class="input-row">
 				<label class="label" for="">Connection Type</label>
@@ -79,6 +143,7 @@
 					<TextInput
 						style="flex-grow: 1"
 						bind:value={connectionData.messageServer}
+						bind:showRequired={showMissingFields}
 					/>
 				</div>
 				<div class="input-row">
@@ -98,6 +163,7 @@
 					<TextInput
 						style="flex-grow: 1"
 						bind:value={connectionData.applicationServer}
+						bind:showRequired={showMissingFields}
 					/>
 				</div>
 				<div class="input-row">
@@ -105,6 +171,7 @@
 					<TextInput
 						style="flex-grow: 1"
 						bind:value={connectionData.instanceNumber}
+						bind:showRequired={showMissingFields}
 					/>
 				</div>
 				<div class="input-row">
@@ -138,18 +205,34 @@
 		</header>
 		<div class="input-group">
 			<div class="input-row">
-				<label class="label" for="">SNC Security Level</label>
-				<Dropdown
-					bind:selectedValue={connectionData.sncLevel}
-					options={sncLevels}
-					style="flex-grow: 1"
-				></Dropdown>
+				<label class="label" for="">SNC Enabled</label>
+				<VSCheckBox bind:value={connectionData.sncEnabled}></VSCheckBox>
 			</div>
 
-			<div class="input-row">
-				<label class="label" for="">SNC Name*</label>
-				<TextInput style="flex-grow: 1" bind:value={connectionData.sncName} />
-			</div>
+			{#if connectionData.sncEnabled}
+				<div class="input-row">
+					<label class="label" for="">SNC Security Level</label>
+					<Dropdown
+						bind:selectedValue={connectionData.sncLevel}
+						options={sncLevels}
+						style="flex-grow: 1"
+					></Dropdown>
+				</div>
+
+				<div class="input-row">
+					<label class="label" for="">SNC Authentication Name*</label>
+					<TextInput
+						style="flex-grow: 1"
+						bind:value={connectionData.sncName}
+						bind:showRequired={showMissingFields}
+					/>
+				</div>
+
+				<div class="input-row">
+					<label class="label" for="">Single-Sign-On Enabled</label>
+					<VSCheckBox bind:value={connectionData.ssoEnabled}></VSCheckBox>
+				</div>
+			{/if}
 		</div>
 	</section>
 
@@ -181,20 +264,31 @@
 	<footer>
 		{#if connectionData.wasPredefined}
 			<div style="display: flex; align-items: center; gap: 8px">
-				<img src={WarningIcon} alt="Warning" />
-				<span>
+				<img src={WarningIcon} alt="Warning" class="messageIcon" />
+				<span class="warningMessage">
 					Modifying technical parameters will disable automatic synchronization
 					with the landscape provider.
 				</span>
 			</div>
 		{/if}
 
+		{#if errorMessage}
+			<div style="display: flex; align-items: center; gap: 8px">
+				<img src={ErrorIcon} alt="Error" />
+				<span class="errorMessage">{errorMessage}</span>
+			</div>
+		{/if}
+
+		{#if successMessage}
+			<div style="display: flex; align-items: center; gap: 8px">
+				<img src={SystemAddedIcon} alt="Success" class="messageIcon" />
+				<span class="successMessage">{successMessage}</span>
+			</div>
+		{/if}
+
 		<div class="buttons">
-			<button
-				type="button"
-				onclick={() => {
-					onSubmit(connectionData);
-				}}>Save Connection</button
+			<button type="button" onclick={onSubmitButtonPressed}
+				>Save Connection</button
 			>
 			<button
 				type="submit"
@@ -209,15 +303,28 @@
 
 <style>
 	footer {
-		margin-top: -8px;
+		margin-top: -5px;
 		display: flex;
 		flex-direction: column;
-		gap: 20px;
+		gap: 15px;
 		height: 100%;
 	}
 
-	footer span {
+	.messageIcon {
+		width: 24px;
+		height: 24px;
+	}
+
+	.errorMessage {
+		color: rgb(255, 41, 41);
+	}
+
+	.warningMessage {
 		color: rgb(223, 223, 38);
+	}
+
+	.successMessage {
+		color: rgb(0, 255, 0);
 	}
 
 	.buttons {

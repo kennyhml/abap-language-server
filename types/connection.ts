@@ -10,6 +10,11 @@ export const SecurityLevel = {
 	Authed: 'Authed',
 } as const;
 
+export type SubmissionResult = {
+	success: boolean;
+	message: string;
+};
+
 export type ConnectionType = keyof typeof ConnectionTypes;
 
 type CommonProperties = {

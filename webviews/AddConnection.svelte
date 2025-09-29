@@ -4,10 +4,9 @@
 		SecurityLevel,
 		type Connection,
 	} from 'types/connection';
-	import ConnectionForm, {
-		type SubmissionResult,
-	} from './lib/ConnectionForm.svelte';
+	import ConnectionForm from './lib/ConnectionForm.svelte';
 	import ConnectionList from './lib/ConnectionList.svelte';
+	import type { SubmissionResult } from 'types/connection';
 	import { onMount } from 'svelte';
 
 	let vscode = acquireVsCodeApi();
@@ -96,7 +95,7 @@
 
 	onMount(async () => {
 		try {
-			connections = await getAvailableConnections();
+			//   connections = await getAvailableConnections();
 		} catch (err) {}
 	});
 </script>
@@ -149,10 +148,12 @@
 
 	.predefined-connections {
 		flex: 1.3 1 0;
+		height: 91vh;
 	}
 
 	.custom-connection {
 		flex: 1 1 0;
+		height: 91vh;
 	}
 
 	.table-title {

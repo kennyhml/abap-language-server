@@ -59,66 +59,69 @@
 	}
 </script>
 
-<div class="content">
-	<div class="header">
-		<TextInput
-			bind:value={searchFilter}
-			placeholder="Search"
-			style="width: 60%; margin-bottom: 5px; border-radius: 2px"
-		/>
-		<button type="button" onclick={onRefreshRequested} aria-label="Refresh">
-		</button>
-	</div>
+<div class="header">
+	<TextInput
+		bind:value={searchFilter}
+		placeholder="Search"
+		style="width: 60%; margin-bottom: 5px; border-radius: 2px"
+	/>
+	<button
+		type="button"
+		title="Reload"
+		onclick={onRefreshRequested}
+		aria-label="Refresh"
+	>
+	</button>
+</div>
 
-	<div class="table-container">
-		<table>
-			<thead>
-				<tr>
-					<th>SID</th>
-					<th>Name</th>
-					<th>Description</th>
-					<th>SNC</th>
-					<th>SSO</th>
-					<th>Router</th>
+<div class="table-container">
+	<table>
+		<thead>
+			<tr>
+				<th>SID</th>
+				<th>Name</th>
+				<th>Description</th>
+				<th>SNC</th>
+				<th>SSO</th>
+				<th>Router</th>
+			</tr>
+		</thead>
+		<tbody>
+			{#each matchingEntries as conn (conn.id)}
+				<tr
+					onclick={() => onSelected(conn)}
+					class:highlighted={conn.id === selectedId}
+				>
+					<td>{conn.systemId}</td>
+					<td>{conn.name}</td>
+					<td>{conn.description}</td>
+					{#if conn.sncEnabled}
+						<td class="icon"><img src={SecureIcon} alt="Secure" /></td>
+					{:else}
+						<td class="icon"><img src={InsecureIcon} alt="Insecure" /></td>
+					{/if}
+					{#if conn.ssoEnabled}
+						<td class="icon"><img src={SSOEnabledIcon} alt="Secure" /></td>
+					{:else}
+						<td class="icon"><img src={SSODisabledIcon} alt="Insecure" /></td>
+					{/if}
+					<td>{conn.sapRouterString}</td>
 				</tr>
-			</thead>
-			<tbody>
-				{#each matchingEntries as conn (conn.id)}
-					<tr
-						onclick={() => onSelected(conn)}
-						class:highlighted={conn.id === selectedId}
-					>
-						<td>{conn.systemId}</td>
-						<td>{conn.name}</td>
-						<td>{conn.description}</td>
-						{#if conn.sncEnabled}
-							<td class="icon"><img src={SecureIcon} alt="Secure" /></td>
-						{:else}
-							<td class="icon"><img src={InsecureIcon} alt="Insecure" /></td>
-						{/if}
-						{#if conn.ssoEnabled}
-							<td class="icon"><img src={SSOEnabledIcon} alt="Secure" /></td>
-						{:else}
-							<td class="icon"><img src={SSODisabledIcon} alt="Insecure" /></td>
-						{/if}
-						<td>{conn.sapRouterString}</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
+			{/each}
+		</tbody>
+	</table>
 
-		{#if connections.length === 0}
-			<p class="not-found">
-				No connections found. Follow <a href="https://github.com/kennyhml"
-					>the instructions</a
-				> to add a connection provider.
-			</p>
-		{:else if noneMatchFilter()}
-			<p class="not-found">
-				No connection matches this filter - please check again.
-			</p>
-		{/if}
-	</div>
+	{#if connections.length === 0}
+		<p class="not-found">
+			No connections found. Follow <a href="https://github.com/kennyhml"
+				>the instructions</a
+			> to add a connection provider.
+		</p>
+	{:else if noneMatchFilter()}
+		<p class="not-found">
+			No connection matches this filter - please check again.
+		</p>
+	{/if}
 </div>
 
 <style>
@@ -132,7 +135,7 @@
 
 	.table-container {
 		overflow-y: auto;
-		max-height: 70vh;
+		height: 76.5vh;
 	}
 
 	.icon {

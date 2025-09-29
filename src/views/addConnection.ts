@@ -2,6 +2,7 @@ import {
 	ConnectionTypes,
 	SecurityLevel,
 	type Connection,
+	type SubmissionResult,
 } from 'types/connection';
 import type { Disposable, ExtensionContext, WebviewPanel } from 'vscode';
 import * as vscode from 'vscode';
@@ -10,10 +11,12 @@ import { ViewColumn, window } from 'vscode';
 export class AddConnectionPanel {
 	public static currentPanel: AddConnectionPanel | undefined;
 	private readonly _panel: WebviewPanel;
+	private context: vscode.ExtensionContext;
 	private _disposables: Disposable[] = [];
 
 	private constructor(panel: WebviewPanel, context: ExtensionContext) {
 		this._panel = panel;
+		this.context = context;
 
 		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
@@ -27,19 +30,26 @@ export class AddConnectionPanel {
 		this._panel.webview.onDidReceiveMessage(
 			(message: any) => {
 				if (message.type === 'onSubmit') {
-					let conn = message.connection as Connection;
+					let conn = JSON.parse(message.connection) as Connection;
 					let interactionId = message.interactionId as string;
+
+					let result: SubmissionResult;
+					try {
+						this.connectionSubmitted(conn);
+						result = { success: true, message: 'Connection added' };
+					} catch (err: any) {
+						result = { success: false, message: err };
+					}
 					this._panel.webview.postMessage({
 						interactionId,
-						data: { foo: 'bar', ...conn },
+						...result,
 					});
 				} else if (message.type === 'getConnections') {
 					let interactionId = message.interactionId as string;
 					this._panel.webview.postMessage({
 						interactionId,
-						data: this.getAvailableConnections()
+						data: this.getAvailableConnections(),
 					});
-
 				}
 			},
 			undefined,
@@ -106,5 +116,13 @@ export class AddConnectionPanel {
 			});
 		}
 		return connections;
+	}
+
+	public connectionSubmitted(conn: Connection) {
+		let data = this.context.workspaceState.get('connections');
+		let connections = (data ?? []) as Connection[];
+		connections.push(conn);
+		this.context.workspaceState.update('connections', connections);
+		console.log(`Connection added: '${conn.systemId}', data: '${conn}'`);
 	}
 }
