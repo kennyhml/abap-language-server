@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Dropdown from './Dropdown.svelte';
 	import TextInput from './TextInput.svelte';
+	import WarningIcon from '../assets/warning.svg';
 
 	import * as connection from 'types/connection';
 	import {
@@ -9,8 +10,18 @@
 		SecurityLevel,
 	} from 'types/connection';
 
-	let { connectionData = $bindable() }: { connectionData: Connection } =
-		$props();
+	export type SubmissionResult = {
+		success: boolean;
+		message: string;
+	};
+
+	type Props = {
+		connectionData: Connection;
+		onSubmit: (conn: Connection) => Promise<SubmissionResult>;
+		onTest: (conn: Connection) => Promise<SubmissionResult>;
+	};
+
+	let { connectionData = $bindable(), onSubmit, onTest }: Props = $props();
 
 	const connectionTypes = [
 		{
@@ -126,8 +137,6 @@
 			<h3 class="config-header">Secure Network Settings</h3>
 		</header>
 		<div class="input-group">
-			<!--TODO: Enabled or not?-->
-
 			<div class="input-row">
 				<label class="label" for="">SNC Security Level</label>
 				<Dropdown
@@ -151,7 +160,10 @@
 		<div class="input-group">
 			<div class="input-row">
 				<label class="label" for="">Save Connection as</label>
-				<TextInput style="flex-grow: 1" />
+				<TextInput
+					style="flex-grow: 1"
+					bind:value={connectionData.displayName}
+				/>
 			</div>
 
 			<div class="input-row">
@@ -165,18 +177,53 @@
 			</div>
 		</div>
 	</section>
-	<footer class="buttons">
-		<button type="button">Save Connection</button>
-		<button type="submit" class="secondary">Test Connection</button>
+
+	<footer>
+		{#if connectionData.wasPredefined}
+			<div style="display: flex; align-items: center; gap: 8px">
+				<img src={WarningIcon} alt="Warning" />
+				<span>
+					Modifying technical parameters will disable automatic synchronization
+					with the landscape provider.
+				</span>
+			</div>
+		{/if}
+
+		<div class="buttons">
+			<button
+				type="button"
+				onclick={() => {
+					onSubmit(connectionData);
+				}}>Save Connection</button
+			>
+			<button
+				type="submit"
+				class="secondary"
+				onclick={() => {
+					onTest(connectionData);
+				}}>Test Connection</button
+			>
+		</div>
 	</footer>
 </section>
 
 <style>
+	footer {
+		margin-top: -8px;
+		display: flex;
+		flex-direction: column;
+		gap: 20px;
+		height: 100%;
+	}
+
+	footer span {
+		color: rgb(223, 223, 38);
+	}
+
 	.buttons {
 		display: flex;
 		flex-direction: row;
 		gap: 40px;
-		width: 100%;
 		height: 100%;
 		margin-bottom: 3px;
 		justify-content: space-between;
@@ -219,7 +266,7 @@
 	.container {
 		display: flex;
 		flex-direction: column;
-		gap: 30px;
+		gap: 20px;
 
 		width: 100%;
 		height: 73vh;

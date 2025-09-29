@@ -23,6 +23,7 @@ type CommonProperties = {
 	sncLevel: keyof typeof SecurityLevel;
 	sapRouterString?: string;
 	keepSynced: boolean;
+	wasPredefined: boolean;
 };
 
 type GroupSelectionProperties = {

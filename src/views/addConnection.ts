@@ -23,8 +23,19 @@ export class AddConnectionPanel {
 			context,
 			inputName: 'addConnection',
 		});
+
+		// vscode.postMessage({ type: 'onSubmit', connection: conn, interactionId });
 		this._panel.webview.onDidReceiveMessage(
-			(message: any) => {},
+			(message: any) => {
+				if (message.type === 'onSubmit') {
+					let conn = message.connection as Connection;
+					let interactionId = message.interactionId as string;
+					this._panel.webview.postMessage({
+						interactionId,
+						data: { foo: 'bar', ...conn },
+					});
+				}
+			},
 			undefined,
 			this._disposables,
 		);
@@ -86,6 +97,7 @@ export class AddConnectionPanel {
 				sncName: '',
 				sncLevel: SecurityLevel.Encrypted,
 				keepSynced: true,
+				wasPredefined: true,
 			});
 		}
 

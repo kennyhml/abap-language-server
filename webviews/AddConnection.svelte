@@ -4,8 +4,12 @@
 		SecurityLevel,
 		type Connection,
 	} from 'types/connection';
-	import ConnectionForm from './lib/ConnectionForm.svelte';
+	import ConnectionForm, {
+		type SubmissionResult,
+	} from './lib/ConnectionForm.svelte';
 	import ConnectionList from './lib/ConnectionList.svelte';
+
+	let vscode = acquireVsCodeApi();
 
 	let connections: Connection[] = $state([]);
 	let formConnectionData: Connection = $state({
@@ -22,7 +26,42 @@
 		sncName: '',
 		sncLevel: SecurityLevel.Encrypted,
 		keepSynced: true,
+		wasPredefined: false,
 	});
+
+	function onConnectionSubmitted(conn: Connection): Promise<SubmissionResult> {
+		let interactionId = Math.random().toString(36).substring(2);
+		vscode.postMessage({
+			type: 'onSubmit',
+			connection: JSON.stringify(conn),
+			interactionId,
+		});
+
+		return new Promise((resolve, reject) => {
+			const handleMessage = (event: MessageEvent<any>) => {
+				if (event.data?.interactionId !== interactionId) {
+					return;
+				}
+				window.removeEventListener('message', handleMessage);
+				console.log('Got a reply: ', event.data);
+				resolve(event.data as SubmissionResult);
+			};
+
+			window.addEventListener('message', handleMessage);
+
+			setTimeout(() => {
+				window.removeEventListener('message', handleMessage);
+				reject(new Error('No response received from webview'));
+			}, 5000);
+		});
+	}
+
+	function onConnectionTestRequested(
+		conn: Connection,
+	): Promise<SubmissionResult> {
+		console.log(conn);
+		return {} as Promise<SubmissionResult>;
+	}
 
 	function onSelectionChange(connection: Connection) {
 		formConnectionData = connection;
@@ -31,7 +70,6 @@
 	window.addEventListener('message', (event: any) => {
 		if (event.data?.type === 'init') {
 			connections = event.data.data.connections as Connection[];
-			console.log('Connections updated.');
 		}
 	});
 </script>
@@ -56,7 +94,11 @@
 			the provided selection.
 		</p>
 		<hr />
-		<ConnectionForm bind:connectionData={formConnectionData}></ConnectionForm>
+		<ConnectionForm
+			bind:connectionData={formConnectionData}
+			onSubmit={onConnectionSubmitted}
+			onTest={onConnectionTestRequested}
+		></ConnectionForm>
 	</section>
 </main>
 
