@@ -25,7 +25,7 @@ export default defineConfig({
 	],
 	resolve: {
 		alias: {
-			types: resolve(__dirname, 'types'),
+			connections: resolve(__dirname, 'src/connections.ts'),
 		},
 	},
 	build: {

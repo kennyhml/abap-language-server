@@ -12,12 +12,83 @@
   "main": "./dist/extension/index.js",
   "activationEvents": [],
   "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "Example configuration",
+      "properties": {
+        "abap.maxNumberOfProblems": {
+          "scope": "resource",
+          "type": "number",
+          "default": 100,
+          "description": "Controls the maximum number of problems produced by the server."
+        },
+        "abap.trace.server": {
+          "scope": "window",
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "verbose",
+          "description": "Traces the communication between VS Code and the language server."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "abap",
+        "extensions": [
+          ".abap"
+        ]
+      }
+    ],
     "commands": [
       {
         "command": "abap.openAddConnectionScreen",
         "title": "Add new System Connection"
+      },
+      {
+        "command": "abap.connectToSystem",
+        "title": "Connect to system",
+        "icon": {
+          "dark": "webviews/assets/connect.svg",
+          "light": "webviews/assets/connect.svg"
+        }
+      },
+      {
+        "command": "abap.disconnectFromSystem",
+        "title": "Disconnect from system",
+        "icon": {
+          "dark": "webviews/assets/disconnect.svg",
+          "light": "webviews/assets/disconnect.svg"
+        }
+      },
+      {
+        "command": "abap.editSystemConnection",
+        "title": "Edit Connection",
+        "shortTitle": "Short"
       }
     ],
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "abap.connectToSystem",
+          "when": "viewItem == disconnected",
+          "group": "inline"
+        },
+        {
+          "command": "abap.disconnectFromSystem",
+          "when": "viewItem == connected",
+          "group": "inline"
+        },
+        {
+          "command": "abap.editSystemConnection",
+          "when": "viewItem == disconnected",
+          "group": "1_modification"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {
@@ -80,7 +151,8 @@
     "bits-ui": "^2.11.4",
     "svelte": "^5.0.3",
     "svelte-check": "^4.0.5",
-    "tailwindcss": "^4.1.13"
+    "tailwindcss": "^4.1.13",
+    "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.0",

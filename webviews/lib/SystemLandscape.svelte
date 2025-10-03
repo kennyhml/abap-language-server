@@ -1,40 +1,40 @@
 <script lang="ts">
-	import type { Connection } from 'types/connection';
 	import TextInput from './TextInput.svelte';
 	import SecureIcon from '../assets/secure.svg';
 	import InsecureIcon from '../assets/insecure.svg';
 	import SSOEnabledIcon from '../assets/ssoEnabled.svg';
 	import SSODisabledIcon from '../assets/ssoDisabled.svg';
+	import { isHttpConnection, type LandscapeSystem } from 'connections';
 
 	let {
-		connections = $bindable(),
+		systems = $bindable(),
 		onSelectionChange,
-		onRefreshRequested,
+		onRefreshLandscape,
 	}: {
-		connections: Connection[];
-		onSelectionChange: (connection: Connection) => void;
-		onRefreshRequested: () => void;
+		systems: LandscapeSystem[];
+		onSelectionChange: (system: LandscapeSystem) => void;
+		onRefreshLandscape: () => void;
 	} = $props();
 
-	type UniqueConnection = Connection & { id: number };
+	type UniqueSystem = LandscapeSystem & { id: number };
 
-	let mappedConnections = $derived(
-		connections
+	let mappedSystems = $derived(
+		systems
 			.toSorted((a, b) => a.systemId.localeCompare(b.systemId))
 			.map((v, i) => ({ ...v, id: i })),
 	);
 
 	let searchFilter: string = $state('');
-	let matchingEntries = $derived(
-		getMatchingConnections(mappedConnections, searchFilter),
+	let systemsMatchingFilter = $derived(
+		getMatchingConnections(mappedSystems, searchFilter),
 	);
 
 	let selectedId: number = $state(-1);
 
 	function getMatchingConnections(
-		conns: UniqueConnection[],
+		conns: UniqueSystem[],
 		filter: string,
-	): UniqueConnection[] {
+	): UniqueSystem[] {
 		if (!filter) {
 			return conns;
 		}
@@ -46,7 +46,7 @@
 		);
 	}
 
-	function onSelected(connection: UniqueConnection) {
+	function onSelected(connection: UniqueSystem) {
 		if (selectedId !== connection.id) {
 			selectedId = connection.id;
 			const { id, ...conn } = connection;
@@ -55,7 +55,7 @@
 	}
 
 	function noneMatchFilter(): boolean {
-		return mappedConnections.length !== 0 && matchingEntries.length === 0;
+		return mappedSystems.length !== 0 && systemsMatchingFilter.length === 0;
 	}
 </script>
 
@@ -68,7 +68,7 @@
 	<button
 		type="button"
 		title="Reload"
-		onclick={onRefreshRequested}
+		onclick={onRefreshLandscape}
 		aria-label="Refresh"
 	>
 	</button>
@@ -87,31 +87,33 @@
 			</tr>
 		</thead>
 		<tbody>
-			{#each matchingEntries as conn (conn.id)}
-				<tr
-					onclick={() => onSelected(conn)}
-					class:highlighted={conn.id === selectedId}
-				>
-					<td>{conn.systemId}</td>
-					<td>{conn.name}</td>
-					<td>{conn.description}</td>
-					{#if conn.sncEnabled}
-						<td class="icon"><img src={SecureIcon} alt="Secure" /></td>
-					{:else}
-						<td class="icon"><img src={InsecureIcon} alt="Insecure" /></td>
-					{/if}
-					{#if conn.ssoEnabled}
-						<td class="icon"><img src={SSOEnabledIcon} alt="Secure" /></td>
-					{:else}
-						<td class="icon"><img src={SSODisabledIcon} alt="Insecure" /></td>
-					{/if}
-					<td>{conn.sapRouterString}</td>
-				</tr>
+			{#each systemsMatchingFilter as system (system.id)}
+				{#if isHttpConnection(system.connection)}{:else}
+					<tr
+						onclick={() => onSelected(system)}
+						class:highlighted={system.id === selectedId}
+					>
+						<td>{system.systemId}</td>
+						<td>{system.name}</td>
+						<td>{system.description}</td>
+						{#if system.connection.params.sncEnabled}
+							<td class="icon"><img src={SecureIcon} alt="Secure" /></td>
+						{:else}
+							<td class="icon"><img src={InsecureIcon} alt="Insecure" /></td>
+						{/if}
+						{#if system.connection.params.ssoEnabled}
+							<td class="icon"><img src={SSOEnabledIcon} alt="Secure" /></td>
+						{:else}
+							<td class="icon"><img src={SSODisabledIcon} alt="Insecure" /></td>
+						{/if}
+						<td>{system.connection.params.sapRouterString}</td>
+					</tr>
+				{/if}
 			{/each}
 		</tbody>
 	</table>
 
-	{#if connections.length === 0}
+	{#if systems.length === 0}
 		<p class="not-found">
 			No connections found. Follow <a href="https://github.com/kennyhml"
 				>the instructions</a

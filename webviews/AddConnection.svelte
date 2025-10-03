@@ -1,39 +1,38 @@
 <script lang="ts">
 	import {
-		ConnectionTypes,
-		SecurityLevel,
-		type Connection,
-	} from 'types/connection';
-	import ConnectionForm from './lib/ConnectionForm.svelte';
-	import ConnectionList from './lib/ConnectionList.svelte';
-	import type { SubmissionResult } from 'types/connection';
+		type System,
+		type LandscapeSystem,
+		type SubmissionResult,
+		ConnectionProtocols,
+	} from 'connections';
+
 	import { onMount } from 'svelte';
+	import SystemForm from './lib/SystemForm.svelte';
+	import SystemLandscape from './lib/SystemLandscape.svelte';
 
 	let vscode = acquireVsCodeApi();
 
-	let connections: Connection[] = $state([]);
-	let formConnectionData: Connection = $state({
+	let landscapeSystems: LandscapeSystem[] = $state([]);
+	let systemData: System = $state({
+		connection: {
+			kind: ConnectionProtocols.HTTP,
+			params: {
+				url: '',
+				port: 8000,
+			},
+		},
 		systemId: '',
-		name: '',
-		displayName: '',
+		defaultClient: '001',
+		defaultLanguage: 'en',
 		description: '',
-		connectionType: ConnectionTypes.CustomApplicationServer,
-		applicationServer: '',
-		instanceNumber: '',
-		sapRouterString: '',
-		sncEnabled: true,
-		ssoEnabled: true,
-		sncName: '',
-		sncLevel: SecurityLevel.Encrypted,
-		keepSynced: true,
-		wasPredefined: false,
+		displayName: '',
 	});
 
-	async function refreshAvailableConnections() {
-		connections = await getAvailableConnections();
+	async function onRefreshLandscape() {
+		landscapeSystems = await getAvailableConnections();
 	}
 
-	function getAvailableConnections(): Promise<Connection[]> {
+	function getAvailableConnections(): Promise<LandscapeSystem[]> {
 		let interactionId = Math.random().toString(36).substring(2);
 		vscode.postMessage({
 			type: 'getConnections',
@@ -46,7 +45,7 @@
 					return;
 				}
 				window.removeEventListener('message', handleMessage);
-				resolve(event.data?.data as Connection[]);
+				resolve(event.data?.data as LandscapeSystem[]);
 			};
 			window.addEventListener('message', handleMessage);
 
@@ -57,11 +56,11 @@
 		});
 	}
 
-	function onConnectionSubmitted(conn: Connection): Promise<SubmissionResult> {
+	function onConnectionSubmitted(system: System): Promise<SubmissionResult> {
 		let interactionId = Math.random().toString(36).substring(2);
 		vscode.postMessage({
 			type: 'onSubmit',
-			connection: JSON.stringify(conn),
+			connection: JSON.stringify(system),
 			interactionId,
 		});
 
@@ -83,14 +82,21 @@
 	}
 
 	function onConnectionTestRequested(
-		conn: Connection,
+		system: System,
 	): Promise<SubmissionResult> {
-		console.log(conn);
+		console.log(system);
 		return {} as Promise<SubmissionResult>;
 	}
 
-	function onSelectionChange(connection: Connection) {
-		formConnectionData = connection;
+	function onSelectionChange(system: LandscapeSystem) {
+		systemData = {
+			connection: system.connection,
+			systemId: system.systemId,
+			defaultClient: '001',
+			defaultLanguage: 'en',
+			description: system.description,
+			displayName: system.name,
+		};
 	}
 
 	onMount(async () => {
@@ -110,11 +116,11 @@
 			>.
 		</span>
 		<hr />
-		<ConnectionList
-			bind:connections
+		<SystemLandscape
+			bind:systems={landscapeSystems}
 			{onSelectionChange}
-			onRefreshRequested={refreshAvailableConnections}
-		></ConnectionList>
+			{onRefreshLandscape}
+		></SystemLandscape>
 	</section>
 
 	<section class="custom-connection">
@@ -124,11 +130,11 @@
 			the provided selection.
 		</p>
 		<hr />
-		<ConnectionForm
-			bind:connectionData={formConnectionData}
+		<SystemForm
+			bind:systemData
 			onSubmit={onConnectionSubmitted}
 			onTest={onConnectionTestRequested}
-		></ConnectionForm>
+		></SystemForm>
 	</section>
 </main>
 

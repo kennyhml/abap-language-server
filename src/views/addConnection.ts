@@ -1,9 +1,11 @@
 import {
+	ConnectionProtocols,
 	ConnectionTypes,
 	SecurityLevel,
-	type Connection,
+	type LandscapeSystem,
 	type SubmissionResult,
-} from 'types/connection';
+	type System,
+} from 'connections';
 import type { Disposable, ExtensionContext, WebviewPanel } from 'vscode';
 import * as vscode from 'vscode';
 import { ViewColumn, window } from 'vscode';
@@ -30,7 +32,7 @@ export class AddConnectionPanel {
 		this._panel.webview.onDidReceiveMessage(
 			(message: any) => {
 				if (message.type === 'onSubmit') {
-					let conn = JSON.parse(message.connection) as Connection;
+					let conn = JSON.parse(message.connection) as System;
 					let interactionId = message.interactionId as string;
 
 					let result: SubmissionResult;
@@ -96,33 +98,35 @@ export class AddConnectionPanel {
 	}
 
 	private getAvailableConnections() {
-		let connections: Connection[] = [];
+		let connections: LandscapeSystem[] = [];
 		for (let i = 0; i < 30; i++) {
 			connections.push({
 				systemId: `W${i}D`,
-				name: '',
-				displayName: '',
-				description: '',
-				connectionType: ConnectionTypes.CustomApplicationServer,
-				applicationServer: '',
-				instanceNumber: '',
-				sapRouterString: '',
-				sncEnabled: true,
-				ssoEnabled: true,
-				sncName: '',
-				sncLevel: SecurityLevel.Encrypted,
-				keepSynced: true,
-				wasPredefined: true,
+				name: 'W4D Logistics',
+				description: 'Some description',
+				connection: {
+					kind: ConnectionProtocols.RFC,
+					params: {
+						connectionType: ConnectionTypes.CustomApplicationServer,
+						applicationServer: '',
+						instanceNumber: '',
+						sapRouterString: '',
+						sncEnabled: true,
+						ssoEnabled: true,
+						sncName: '',
+						sncLevel: SecurityLevel.Encrypted,
+					},
+				},
 			});
 		}
 		return connections;
 	}
 
-	public connectionSubmitted(conn: Connection) {
-		let data = this.context.workspaceState.get('connections');
-		let connections = (data ?? []) as Connection[];
-		connections.push(conn);
-		this.context.workspaceState.update('connections', connections);
+	public connectionSubmitted(conn: System) {
+		// let data = this.context.workspaceState.get('systems');
+		// let connections = (data ?? []) as System[];
+		// connections.push(conn);
+		// this.context.workspaceState.update('connections', connections);
 		console.log(`Connection added: '${conn.systemId}', data: '${conn}'`);
 	}
 }

@@ -4,22 +4,23 @@
 	import WarningIcon from '../assets/warning.svg';
 	import ErrorIcon from '../assets/error.svg';
 	import SystemAddedIcon from '../assets/systemAdded.svg';
-	import * as connection from 'types/connection';
+	import * as connection from 'connections';
 	import {
-		type Connection,
+		type System,
 		type SubmissionResult,
 		ConnectionTypes,
 		SecurityLevel,
-	} from 'types/connection';
+		isRfcConnection,
+	} from 'connections';
 	import VSCheckBox from './common/VSCheckBox.svelte';
 
 	type Props = {
-		connectionData: Connection;
-		onSubmit: (conn: Connection) => Promise<SubmissionResult>;
-		onTest: (conn: Connection) => Promise<SubmissionResult>;
+		systemData: System;
+		onSubmit: (system: System) => Promise<SubmissionResult>;
+		onTest: (system: System) => Promise<SubmissionResult>;
 	};
 
-	let { connectionData = $bindable(), onSubmit, onTest }: Props = $props();
+	let { systemData = $bindable(), onSubmit, onTest }: Props = $props();
 	let showMissingFields = $state(false);
 
 	let errorMessage = $state('');
@@ -60,15 +61,24 @@
 	 * the difference between connection types.
 	 * @param data
 	 */
-	function allRequiredFieldsFilled(data: Connection) {
-		if (!data.systemId || (data.sncEnabled && !data.sncName)) {
-			return false;
-		}
-		// Different props required based on the connection type
-		if (connection.isApplicationServer(data)) {
-			return data.applicationServer && data.instanceNumber;
+	function allRequiredFieldsFilled(system: System) {
+		if (connection.isRfcConnection(system.connection)) {
+			let params = system.connection.params;
+			if (!system.systemId || (params.sncEnabled && !params.sncName)) {
+				return false;
+			}
+			// Different props required based on the connection type
+			if (connection.isApplicationServer(params)) {
+				return params.applicationServer && params.instanceNumber;
+			} else {
+				return params.group && params.messageServer;
+			}
 		} else {
-			return data.group && data.messageServer;
+			return (
+				system.systemId &&
+				system.connection.params.url &&
+				system.connection.params.port
+			);
 		}
 	}
 
@@ -80,7 +90,7 @@
 	 * missing fields and displays an error message.
 	 */
 	async function onSubmitButtonPressed() {
-		if (!allRequiredFieldsFilled(connectionData)) {
+		if (!allRequiredFieldsFilled(systemData)) {
 			showMissingFields = true;
 			errorMessage = 'Fill in the mandatory connection parameters.';
 			successMessage = '';
@@ -88,25 +98,9 @@
 		}
 		showMissingFields = false;
 		errorMessage = '';
-		let result = await onSubmit(connectionData);
+		let result = await onSubmit(systemData);
 		console.log('Submission result: ', result);
 		if (result.success) {
-			connectionData = {
-				systemId: '',
-				name: '',
-				displayName: '',
-				description: '',
-				connectionType: ConnectionTypes.CustomApplicationServer,
-				applicationServer: '',
-				instanceNumber: '',
-				sapRouterString: '',
-				sncEnabled: true,
-				ssoEnabled: true,
-				sncName: '',
-				sncLevel: SecurityLevel.Encrypted,
-				keepSynced: false,
-				wasPredefined: false,
-			};
 			successMessage = result.message;
 		} else {
 			errorMessage = result.message;
@@ -124,117 +118,143 @@
 				<label class="label" for="">System ID*</label>
 				<TextInput
 					style="flex-grow: 1"
-					bind:value={connectionData.systemId}
+					bind:value={systemData.systemId}
 					bind:showRequired={showMissingFields}
 				/>
 			</div>
-			<div class="input-row">
-				<label class="label" for="">Connection Type</label>
-				<Dropdown
-					bind:selectedValue={connectionData.connectionType}
-					options={connectionTypes}
-					style="flex-grow: 1"
-				></Dropdown>
-			</div>
-
-			{#if connection.isGroupSelection(connectionData)}
+			{#if isRfcConnection(systemData.connection)}
 				<div class="input-row">
-					<label class="label" for="">Message Server*</label>
-					<TextInput
-						style="flex-grow: 1"
-						bind:value={connectionData.messageServer}
-						bind:showRequired={showMissingFields}
-					/>
-				</div>
-				<div class="input-row">
-					<label class="label" for="">Group*</label>
-					<TextInput style="flex-grow: 1" bind:value={connectionData.group} />
-				</div>
-				<div class="input-row">
-					<label class="label" for="">Message Server Port</label>
-					<TextInput
-						style="flex-grow: 1"
-						bind:value={connectionData.messageServerPort}
-					/>
-				</div>
-			{:else}
-				<div class="input-row">
-					<label class="label" for="">Application Server*</label>
-					<TextInput
-						style="flex-grow: 1"
-						bind:value={connectionData.applicationServer}
-						bind:showRequired={showMissingFields}
-					/>
-				</div>
-				<div class="input-row">
-					<label class="label" for="">Instance Number*</label>
-					<TextInput
-						style="flex-grow: 1"
-						bind:value={connectionData.instanceNumber}
-						bind:showRequired={showMissingFields}
-					/>
-				</div>
-				<div class="input-row">
-					<label class="label" for="">RFC Gateway Server</label>
-					<TextInput
-						style="flex-grow: 1"
-						bind:value={connectionData.rfcGatewayServer}
-					/>
-				</div>
-				<div class="input-row">
-					<label class="label" for="">RFC Gateway Server Port</label>
-					<TextInput
-						style="flex-grow: 1"
-						bind:value={connectionData.rfcGatewayServerPort}
-					/>
-				</div>
-			{/if}
-			<div class="input-row">
-				<label class="label" for="">SAProuter Connection String</label>
-				<TextInput
-					style="flex-grow: 1"
-					bind:value={connectionData.sapRouterString}
-				/>
-			</div>
-		</div>
-	</section>
-
-	<section style="width: 100%;">
-		<header>
-			<h3 class="config-header">Secure Network Settings</h3>
-		</header>
-		<div class="input-group">
-			<div class="input-row">
-				<label class="label" for="">SNC Enabled</label>
-				<VSCheckBox bind:value={connectionData.sncEnabled}></VSCheckBox>
-			</div>
-
-			{#if connectionData.sncEnabled}
-				<div class="input-row">
-					<label class="label" for="">SNC Security Level</label>
+					<label class="label" for="">Connection Type</label>
 					<Dropdown
-						bind:selectedValue={connectionData.sncLevel}
-						options={sncLevels}
+						bind:selectedValue={systemData.connection.kind}
+						options={connectionTypes}
 						style="flex-grow: 1"
 					></Dropdown>
 				</div>
 
+				{#if connection.isGroupSelection(systemData.connection.params)}
+					<div class="input-row">
+						<label class="label" for="">Message Server*</label>
+						<TextInput
+							style="flex-grow: 1"
+							bind:value={systemData.connection.params.messageServer}
+							bind:showRequired={showMissingFields}
+						/>
+					</div>
+					<div class="input-row">
+						<label class="label" for="">Group*</label>
+						<TextInput
+							style="flex-grow: 1"
+							bind:value={systemData.connection.params.group}
+						/>
+					</div>
+					<div class="input-row">
+						<label class="label" for="">Message Server Port</label>
+						<TextInput
+							style="flex-grow: 1"
+							bind:value={systemData.connection.params.messageServerPort}
+						/>
+					</div>
+				{:else}
+					<div class="input-row">
+						<label class="label" for="">Application Server*</label>
+						<TextInput
+							style="flex-grow: 1"
+							bind:value={systemData.connection.params.applicationServer}
+							bind:showRequired={showMissingFields}
+						/>
+					</div>
+					<div class="input-row">
+						<label class="label" for="">Instance Number*</label>
+						<TextInput
+							style="flex-grow: 1"
+							bind:value={systemData.connection.params.instanceNumber}
+							bind:showRequired={showMissingFields}
+						/>
+					</div>
+					<div class="input-row">
+						<label class="label" for="">RFC Gateway Server</label>
+						<TextInput
+							style="flex-grow: 1"
+							bind:value={systemData.connection.params.rfcGatewayServer}
+						/>
+					</div>
+					<div class="input-row">
+						<label class="label" for="">RFC Gateway Server Port</label>
+						<TextInput
+							style="flex-grow: 1"
+							bind:value={systemData.connection.params.rfcGatewayServerPort}
+						/>
+					</div>
+				{/if}
 				<div class="input-row">
-					<label class="label" for="">SNC Authentication Name*</label>
+					<label class="label" for="">SAProuter Connection String</label>
 					<TextInput
 						style="flex-grow: 1"
-						bind:value={connectionData.sncName}
+						bind:value={systemData.connection.params.sapRouterString}
+					/>
+				</div>
+			{:else}
+				<div class="input-row">
+					<label class="label" for="">Hostname*</label>
+					<TextInput
+						style="flex-grow: 1"
+						bind:value={systemData.connection.params.url}
 						bind:showRequired={showMissingFields}
 					/>
 				</div>
-
 				<div class="input-row">
-					<label class="label" for="">Single-Sign-On Enabled</label>
-					<VSCheckBox bind:value={connectionData.ssoEnabled}></VSCheckBox>
+					<label class="label" for="">Port*</label>
+					<TextInput
+						style="flex-grow: 1"
+						bind:value={systemData.connection.params.port}
+						bind:showRequired={showMissingFields}
+					/>
 				</div>
 			{/if}
 		</div>
 	</section>
+
+	{#if isRfcConnection(systemData.connection)}
+		<section style="width: 100%;">
+			<header>
+				<h3 class="config-header">Secure Network Settings</h3>
+			</header>
+			<div class="input-group">
+				<div class="input-row">
+					<label class="label" for="">SNC Enabled</label>
+					<VSCheckBox bind:value={systemData.connection.params.sncEnabled}
+					></VSCheckBox>
+				</div>
+
+				{#if systemData.connection.params.sncEnabled}
+					<div class="input-row">
+						<label class="label" for="">SNC Security Level</label>
+						<Dropdown
+							bind:selectedValue={systemData.connection.params.sncLevel}
+							options={sncLevels}
+							style="flex-grow: 1"
+						></Dropdown>
+					</div>
+
+					<div class="input-row">
+						<label class="label" for="">SNC Authentication Name*</label>
+						<TextInput
+							style="flex-grow: 1"
+							bind:value={systemData.connection.params.sncName}
+							bind:showRequired={showMissingFields}
+						/>
+					</div>
+
+					<div class="input-row">
+						<label class="label" for="">Single-Sign-On Enabled</label>
+						<VSCheckBox bind:value={systemData.connection.params.ssoEnabled}
+						></VSCheckBox>
+					</div>
+				{/if}
+			</div>
+		</section>
+	{/if}
 
 	<section style="width: 100%;">
 		<header>
@@ -243,10 +263,7 @@
 		<div class="input-group">
 			<div class="input-row">
 				<label class="label" for="">Save Connection as</label>
-				<TextInput
-					style="flex-grow: 1"
-					bind:value={connectionData.displayName}
-				/>
+				<TextInput style="flex-grow: 1" bind:value={systemData.displayName} />
 			</div>
 
 			<div class="input-row">
@@ -262,7 +279,7 @@
 	</section>
 
 	<footer>
-		{#if connectionData.wasPredefined}
+		{#if systemData.landscapeProviderUrl}
 			<div style="display: flex; align-items: center; gap: 8px">
 				<img src={WarningIcon} alt="Warning" class="messageIcon" />
 				<span class="warningMessage">
@@ -294,7 +311,7 @@
 				type="submit"
 				class="secondary"
 				onclick={() => {
-					onTest(connectionData);
+					onTest(systemData);
 				}}>Test Connection</button
 			>
 		</div>
