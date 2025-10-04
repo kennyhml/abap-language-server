@@ -4,14 +4,21 @@
 	import InsecureIcon from '../assets/insecure.svg';
 	import SSOEnabledIcon from '../assets/ssoEnabled.svg';
 	import SSODisabledIcon from '../assets/ssoDisabled.svg';
-	import { isHttpConnection, type LandscapeSystem } from 'connections';
+	import {
+		ConnectionProtocols,
+		isRfcConnection,
+		type ConnectionProtocol,
+		type LandscapeSystem,
+	} from 'connections';
 
 	let {
 		systems = $bindable(),
+		protocol = $bindable(),
 		onSelectionChange,
 		onRefreshLandscape,
 	}: {
 		systems: LandscapeSystem[];
+		protocol: ConnectionProtocol;
 		onSelectionChange: (system: LandscapeSystem) => void;
 		onRefreshLandscape: () => void;
 	} = $props();
@@ -35,14 +42,12 @@
 		conns: UniqueSystem[],
 		filter: string,
 	): UniqueSystem[] {
-		if (!filter) {
-			return conns;
-		}
 		let lowerFilter = filter.toLowerCase();
 		return conns.filter(
 			(conn) =>
-				conn.systemId.toLowerCase().includes(lowerFilter) ||
-				conn.name.toLowerCase().includes(lowerFilter),
+				conn.connection.kind === protocol &&
+				(conn.systemId.toLowerCase().includes(lowerFilter) ||
+					conn.name.toLowerCase().includes(lowerFilter)),
 		);
 	}
 
@@ -55,7 +60,11 @@
 	}
 
 	function noneMatchFilter(): boolean {
-		return mappedSystems.length !== 0 && systemsMatchingFilter.length === 0;
+		return (
+			searchFilter.length !== 0 &&
+			mappedSystems.length !== 0 &&
+			systemsMatchingFilter.length === 0
+		);
 	}
 </script>
 
@@ -81,21 +90,26 @@
 				<th>SID</th>
 				<th>Name</th>
 				<th>Description</th>
-				<th>SNC</th>
-				<th>SSO</th>
-				<th>Router</th>
+				{#if protocol === ConnectionProtocols.RFC}
+					<th>SNC</th>
+					<th>SSO</th>
+					<th>Router</th>
+				{:else}
+					<th>Hostname</th>
+					<th>Port</th>
+				{/if}
 			</tr>
 		</thead>
 		<tbody>
 			{#each systemsMatchingFilter as system (system.id)}
-				{#if isHttpConnection(system.connection)}{:else}
-					<tr
-						onclick={() => onSelected(system)}
-						class:highlighted={system.id === selectedId}
-					>
-						<td>{system.systemId}</td>
-						<td>{system.name}</td>
-						<td>{system.description}</td>
+				<tr
+					onclick={() => onSelected(system)}
+					class:highlighted={system.id === selectedId}
+				>
+					<td>{system.systemId}</td>
+					<td>{system.name}</td>
+					<td>{system.description}</td>
+					{#if isRfcConnection(system.connection)}
 						{#if system.connection.params.sncEnabled}
 							<td class="icon"><img src={SecureIcon} alt="Secure" /></td>
 						{:else}
@@ -107,21 +121,24 @@
 							<td class="icon"><img src={SSODisabledIcon} alt="Insecure" /></td>
 						{/if}
 						<td>{system.connection.params.sapRouterString}</td>
-					</tr>
-				{/if}
+					{:else}
+						<td>{system.connection.params.url}</td>
+						<td>{system.connection.params.port}</td>
+					{/if}
+				</tr>
 			{/each}
 		</tbody>
 	</table>
 
-	{#if systems.length === 0}
+	{#if noneMatchFilter()}
+		<p class="not-found">
+			No connection matches this filter - please check again.
+		</p>
+	{:else}
 		<p class="not-found">
 			No connections found. Follow <a href="https://github.com/kennyhml"
 				>the instructions</a
 			> to add a connection provider.
-		</p>
-	{:else if noneMatchFilter()}
-		<p class="not-found">
-			No connection matches this filter - please check again.
 		</p>
 	{/if}
 </div>

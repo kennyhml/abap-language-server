@@ -4,6 +4,7 @@
 		type LandscapeSystem,
 		type SubmissionResult,
 		ConnectionProtocols,
+		type ConnectionProtocol,
 	} from 'connections';
 
 	import { onMount } from 'svelte';
@@ -12,6 +13,7 @@
 
 	let vscode = acquireVsCodeApi();
 
+	let selectedProtocol: ConnectionProtocol = $state(ConnectionProtocols.HTTP);
 	let landscapeSystems: LandscapeSystem[] = $state([]);
 	let systemData: System = $state({
 		connection: {
@@ -106,42 +108,91 @@
 	});
 </script>
 
-<main class="container">
-	<section class="predefined-connections">
-		<h2 class="table-title">Automatically detected Systems</h2>
-		<span>
-			SAP Logon system connections are detected from the installation files or a <a
-				href="https://github.com/kennyhml"
-				target="_blank">manually specified location</a
-			>.
-		</span>
-		<hr />
-		<SystemLandscape
-			bind:systems={landscapeSystems}
-			{onSelectionChange}
-			{onRefreshLandscape}
-		></SystemLandscape>
+<main>
+	<section class="protocolSwitch">
+		<button
+			class:active={selectedProtocol === ConnectionProtocols.HTTP}
+			onclick={() => (selectedProtocol = ConnectionProtocols.HTTP)}>HTTP</button
+		>
+		<!--RFC not supported for now-->
+		<button
+			disabled={true}
+			class:active={selectedProtocol === ConnectionProtocols.RFC}
+			onclick={() => (selectedProtocol = ConnectionProtocols.RFC)}>RFC</button
+		>
 	</section>
 
-	<section class="custom-connection">
-		<h2 class="table-title">Customize Connection</h2>
-		<p>
-			Create a new connection from scratch or modify an existing connection from
-			the provided selection.
-		</p>
-		<hr />
-		<SystemForm
-			bind:systemData
-			onSubmit={onConnectionSubmitted}
-			onTest={onConnectionTestRequested}
-		></SystemForm>
+	<section class="panels">
+		<section class="predefined-connections">
+			<h2 class="table-title">Automatically detected Systems</h2>
+			<span>
+				SAP Logon system connections are detected from the installation files or
+				a <a href="https://github.com/kennyhml" target="_blank"
+					>manually specified location</a
+				>.
+			</span>
+			<hr />
+			<SystemLandscape
+				bind:systems={landscapeSystems}
+				bind:protocol={selectedProtocol}
+				{onSelectionChange}
+				{onRefreshLandscape}
+			></SystemLandscape>
+		</section>
+
+		<section class="custom-connection">
+			<h2 class="table-title">Customize Connection</h2>
+			<p>
+				Create a new connection from scratch or modify an existing connection
+				from the provided selection.
+			</p>
+			<hr />
+			<SystemForm
+				bind:systemData
+				onSubmit={onConnectionSubmitted}
+				onTest={onConnectionTestRequested}
+			></SystemForm>
+		</section>
 	</section>
 </main>
 
 <style>
-	.container {
+	main {
 		display: flex;
-		margin: 40px 20px;
+		flex-direction: column;
+		margin: 25px 20px;
+		gap: 10px;
+	}
+
+	.protocolSwitch {
+		display: flex;
+		flex-direction: row;
+		gap: 1px;
+	}
+
+	.protocolSwitch button {
+		width: 100px;
+		height: 25px;
+		text-transform: uppercase;
+		font-weight: bold;
+
+		border-radius: 2px;
+		background-color: var(--vscode-button-secondaryBackground);
+		border: 1px solid var(--vscode-button-secondaryborder);
+		color: var(--vscode-button-secondaryForeground);
+		padding: 4px 10px;
+	}
+
+	.protocolSwitch .active {
+		background-color: var(--vscode-button-background);
+	}
+
+	.protocolSwitch button:not(.active):hover {
+		background-color: var(--vscode-button-secondaryHoverBackground);
+	}
+
+	.panels {
+		display: flex;
 		gap: 50px;
 	}
 
@@ -171,7 +222,7 @@
 	}
 
 	@media (max-width: 1000px) {
-		.container {
+		.panels {
 			flex-direction: column;
 		}
 	}
