@@ -24,6 +24,41 @@ export type ConnectionProtocol =
 	(typeof ConnectionProtocols)[keyof typeof ConnectionProtocols];
 export type ConnectionType = keyof typeof ConnectionTypes;
 
+export const DEFAULT_HTTP_SYSTEM: System = {
+	systemId: '',
+	displayName: '',
+	description: '',
+	defaultClient: '001',
+	defaultLanguage: 'en',
+	connection: {
+		kind: ConnectionProtocols.HTTP,
+		params: {
+			port: 50000,
+			url: '',
+		},
+	},
+};
+
+export const DEFAULT_RFC_SYSTEM: System = {
+	systemId: '',
+	displayName: '',
+	description: '',
+	defaultClient: '001',
+	defaultLanguage: 'en',
+	connection: {
+		kind: ConnectionProtocols.RFC,
+		params: {
+			applicationServer: '',
+			connectionType: ConnectionTypes.CustomApplicationServer,
+			instanceNumber: '00',
+			sncEnabled: true,
+			ssoEnabled: true,
+			sncLevel: SecurityLevel.Highest,
+			sncName: '',
+		},
+	},
+};
+
 /**
  * Connection Properties for a RFC connection that apply regardless
  * of the underlying connection type that is used in the end.

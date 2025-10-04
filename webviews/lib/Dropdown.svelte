@@ -12,11 +12,10 @@
 	select {
 		color: 1px solid var(--vscode-dropdown-foreground);
 		border-color: var(--vscode-dropdown-border);
-		border-radius: 3px;
 		border-style: solid;
 
 		cursor: pointer;
-		padding: 3px 32px 3px 3px;
+		padding: 1px 32px 1px 3px;
 
 		background-color: var(--vscode-dropdown-background);
 		background-image: url(../assets/arrow-down.svg);

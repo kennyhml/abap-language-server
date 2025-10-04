@@ -126,7 +126,7 @@
 				<div class="input-row">
 					<label class="label" for="">Connection Type</label>
 					<Dropdown
-						bind:selectedValue={systemData.connection.kind}
+						bind:selectedValue={systemData.connection.params.connectionType}
 						options={connectionTypes}
 						style="flex-grow: 1"
 					></Dropdown>
@@ -283,8 +283,8 @@
 			<div style="display: flex; align-items: center; gap: 8px">
 				<img src={WarningIcon} alt="Warning" class="messageIcon" />
 				<span class="warningMessage">
-					Modifying technical parameters will disable automatic synchronization
-					with the landscape provider.
+					Modifying technical parameters disables automatic synchronization with
+					the landscape provider.
 				</span>
 			</div>
 		{/if}
@@ -349,7 +349,6 @@
 		flex-direction: row;
 		gap: 40px;
 		height: 100%;
-		margin-bottom: 3px;
 		justify-content: space-between;
 		align-items: end;
 	}
@@ -392,8 +391,11 @@
 		flex-direction: column;
 		gap: 20px;
 
+		position: relative;
 		width: 100%;
-		height: 73vh;
+		order: 0;
+		flex: 1 1 auto;
+		align-self: stretch;
 	}
 
 	.config-header {

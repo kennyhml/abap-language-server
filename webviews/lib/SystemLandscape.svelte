@@ -134,7 +134,7 @@
 		<p class="not-found">
 			No connection matches this filter - please check again.
 		</p>
-	{:else}
+	{:else if systemsMatchingFilter.length === 0}
 		<p class="not-found">
 			No connections found. Follow <a href="https://github.com/kennyhml"
 				>the instructions</a

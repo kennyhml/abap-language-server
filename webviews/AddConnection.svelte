@@ -5,6 +5,8 @@
 		type SubmissionResult,
 		ConnectionProtocols,
 		type ConnectionProtocol,
+		DEFAULT_HTTP_SYSTEM,
+		DEFAULT_RFC_SYSTEM,
 	} from 'connections';
 
 	import { onMount } from 'svelte';
@@ -98,7 +100,20 @@
 			defaultLanguage: 'en',
 			description: system.description,
 			displayName: system.name,
+			landscapeProviderUrl: '/land/scape/provider/',
 		};
+	}
+
+	function onProtocolChange(protocol: ConnectionProtocol) {
+		if (protocol === selectedProtocol) {
+			return;
+		}
+		selectedProtocol = protocol;
+		if (selectedProtocol === ConnectionProtocols.HTTP) {
+			systemData = DEFAULT_HTTP_SYSTEM;
+		} else {
+			systemData = DEFAULT_RFC_SYSTEM;
+		}
 	}
 
 	onMount(async () => {
@@ -112,13 +127,12 @@
 	<section class="protocolSwitch">
 		<button
 			class:active={selectedProtocol === ConnectionProtocols.HTTP}
-			onclick={() => (selectedProtocol = ConnectionProtocols.HTTP)}>HTTP</button
+			onclick={() => onProtocolChange(ConnectionProtocols.HTTP)}>HTTP</button
 		>
 		<!--RFC not supported for now-->
 		<button
-			disabled={true}
 			class:active={selectedProtocol === ConnectionProtocols.RFC}
-			onclick={() => (selectedProtocol = ConnectionProtocols.RFC)}>RFC</button
+			onclick={() => onProtocolChange(ConnectionProtocols.RFC)}>RFC</button
 		>
 	</section>
 
@@ -142,10 +156,10 @@
 
 		<section class="custom-connection">
 			<h2 class="table-title">Customize Connection</h2>
-			<p>
+			<span>
 				Create a new connection from scratch or modify an existing connection
 				from the provided selection.
-			</p>
+			</span>
 			<hr />
 			<SystemForm
 				bind:systemData
@@ -205,12 +219,16 @@
 
 	.predefined-connections {
 		flex: 1.3 1 0;
-		height: 91vh;
+		display: flex;
+		flex-direction: column;
+		height: 90vh;
 	}
 
 	.custom-connection {
 		flex: 1 1 0;
-		height: 91vh;
+		display: flex;
+		flex-direction: column;
+		height: 90vh;
 	}
 
 	.table-title {

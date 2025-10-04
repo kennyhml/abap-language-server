@@ -105,16 +105,10 @@ export class AddConnectionPanel {
 				name: 'W4D Logistics',
 				description: 'Some description',
 				connection: {
-					kind: ConnectionProtocols.RFC,
+					kind: ConnectionProtocols.HTTP,
 					params: {
-						connectionType: ConnectionTypes.CustomApplicationServer,
-						applicationServer: '',
-						instanceNumber: '',
-						sapRouterString: '',
-						sncEnabled: true,
-						ssoEnabled: true,
-						sncName: '',
-						sncLevel: SecurityLevel.Encrypted,
+						port: 50000,
+						url: 'http://localhost',
 					},
 				},
 			});
