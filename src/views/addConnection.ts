@@ -1,11 +1,10 @@
 import {
 	ConnectionProtocols,
-	ConnectionTypes,
-	SecurityLevel,
 	type LandscapeSystem,
 	type SubmissionResult,
 	type System,
 } from 'connections';
+import { spawnLanguageClient } from 'languageClient';
 import type { Disposable, ExtensionContext, WebviewPanel } from 'vscode';
 import * as vscode from 'vscode';
 import { ViewColumn, window } from 'vscode';
@@ -30,18 +29,15 @@ export class AddConnectionPanel {
 		});
 
 		this._panel.webview.onDidReceiveMessage(
-			(message: any) => {
-				if (message.type === 'onSubmit') {
+			async (message: any) => {
+				if (message.type === 'onSubmit' || message.type === 'onTest') {
 					let conn = JSON.parse(message.connection) as System;
 					let interactionId = message.interactionId as string;
 
-					let result: SubmissionResult;
-					try {
-						this.connectionSubmitted(conn);
-						result = { success: true, message: 'Connection added' };
-					} catch (err: any) {
-						result = { success: false, message: err };
-					}
+					let result = await this.connectionSubmitted(
+						conn,
+						message.type === 'onTest',
+					);
 					this._panel.webview.postMessage({
 						interactionId,
 						...result,
@@ -116,11 +112,40 @@ export class AddConnectionPanel {
 		return connections;
 	}
 
-	public connectionSubmitted(conn: System) {
-		// let data = this.context.workspaceState.get('systems');
-		// let connections = (data ?? []) as System[];
-		// connections.push(conn);
-		// this.context.workspaceState.update('connections', connections);
-		console.log(`Connection added: '${conn.systemId}', data: '${conn}'`);
+	public async connectionSubmitted(
+		system: System,
+		test?: boolean,
+	): Promise<SubmissionResult> {
+		console.log(
+			`System: '${system.systemId}', data: '${JSON.stringify(system)}'`,
+		);
+
+		let client = await spawnLanguageClient(system, { silent: true });
+		if (test) {
+			try {
+				await client.start();
+			} catch (err: any) {
+				return {
+					success: false,
+					message: err.message ?? 'Could not start the language server',
+				};
+			}
+
+			// Shut down the client again immediately,
+			await client.stop();
+			return {
+				success: true,
+				message: 'System is valid.',
+			};
+		}
+
+		let data = this.context.workspaceState.get('systems');
+		let systems = (data ?? []) as System[];
+		systems.push(system);
+		this.context.workspaceState.update('systems', systems);
+		return {
+			success: true,
+			message: 'System added to workspace',
+		};
 	}
 }

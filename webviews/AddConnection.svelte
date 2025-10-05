@@ -88,8 +88,28 @@
 	function onConnectionTestRequested(
 		system: System,
 	): Promise<SubmissionResult> {
-		console.log(system);
-		return {} as Promise<SubmissionResult>;
+		let interactionId = Math.random().toString(36).substring(2);
+		vscode.postMessage({
+			type: 'onTest',
+			connection: JSON.stringify(system),
+			interactionId,
+		});
+
+		return new Promise((resolve, reject) => {
+			const handleMessage = (event: MessageEvent<any>) => {
+				if (event.data?.interactionId !== interactionId) {
+					return;
+				}
+				window.removeEventListener('message', handleMessage);
+				resolve(event.data as SubmissionResult);
+			};
+			window.addEventListener('message', handleMessage);
+
+			setTimeout(() => {
+				window.removeEventListener('message', handleMessage);
+				reject(new Error('No response received from extension'));
+			}, 5000);
+		});
 	}
 
 	function onSelectionChange(system: LandscapeSystem) {
