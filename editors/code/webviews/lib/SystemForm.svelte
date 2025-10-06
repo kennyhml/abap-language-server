@@ -286,9 +286,18 @@
 		{:else}
 			<div class="input-group">
 				<div class="input-row">
-					<label class="label" for="">SSL/TLS Encrypted</label>
+					<label class="label" for="">SSL/TLS Encrypted (HTTPS)</label>
 					<VSCheckBox bind:value={systemData.connection.params.ssl}
 					></VSCheckBox>
+
+					{#if !systemData.connection.params.ssl}
+						<div
+							style="display: flex; align-items: center; gap: 8px; margin-left: 5px"
+						>
+							<img src={WarningIcon} alt="Warning" class="securityRiskIcon" />
+							<span class="warningMessage">HTTPS is strongly recommended</span>
+						</div>
+					{/if}
 				</div>
 
 				{#if systemData.connection.params.ssl}
@@ -297,6 +306,16 @@
 						<VSCheckBox
 							bind:value={systemData.connection.params.acceptInvalidCerts}
 						></VSCheckBox>
+						{#if systemData.connection.params.acceptInvalidCerts}
+							<div
+								style="display: flex; align-items: center; gap: 8px; margin-left: 5px"
+							>
+								<img src={WarningIcon} alt="Warning" class="securityRiskIcon" />
+								<span class="warningMessage"
+									>Trusting invalid certs poses a security threat.</span
+								>
+							</div>
+						{/if}
 					</div>
 
 					<div class="input-row">
@@ -304,6 +323,16 @@
 						<VSCheckBox
 							bind:value={systemData.connection.params.acceptInvalidHostname}
 						></VSCheckBox>
+						{#if systemData.connection.params.acceptInvalidHostname}
+							<div
+								style="display: flex; align-items: center; gap: 8px; margin-left: 5px"
+							>
+								<img src={WarningIcon} alt="Warning" class="securityRiskIcon" />
+								<span class="warningMessage"
+									>Trusting invalid hostnames poses a security threat.</span
+								>
+							</div>
+						{/if}
 					</div>
 
 					<div class="input-row">
@@ -407,6 +436,12 @@
 	.messageIcon {
 		width: 24px;
 		height: 24px;
+	}
+
+	.securityRiskIcon {
+		margin-left: 5px;
+		width: 20px;
+		height: 20px;
 	}
 
 	.errorMessage {
