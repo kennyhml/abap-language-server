@@ -1,6 +1,5 @@
-## ABAP-LSP
-An implementation of the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) for the ABAP Programming Language written in Rust.
+## ABAP Language Server
+An implementation of the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) for ABAP with a main focus on integrating nicely with Visual Studio Code.
 
-The goal of this project is to enable programmers to write ABAP Code in an IDE of their choice, wrapping as much of the functionality that ADT offers as possible.
-
-While similar tools exist, most of them are quite buggy and focus on making ABAP available to vscode rather than implementing a proper LSP.
+The idea is to use the ABAP Development Tools only where needed and perform as much work as possible on the language server. Ideally, this means ADT should only be used to retrieve things such as objects,
+source code, data definitions and table data. 
