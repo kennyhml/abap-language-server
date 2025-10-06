@@ -36,5 +36,6 @@ export default defineConfig({
 		},
 		emptyOutDir: true,
 		minify: false,
+		sourcemap: 'inline',
 	},
 });

@@ -108,7 +108,7 @@
 			setTimeout(() => {
 				window.removeEventListener('message', handleMessage);
 				reject(new Error('No response received from extension'));
-			}, 5000);
+			}, 10_000);
 		});
 	}
 

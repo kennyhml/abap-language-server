@@ -3,6 +3,7 @@
 	import TextInput from './TextInput.svelte';
 	import WarningIcon from '../assets/warning.svg';
 	import ErrorIcon from '../assets/error.svg';
+	import LoadingIcon from '../assets/loading.svg';
 	import SystemAddedIcon from '../assets/systemAdded.svg';
 	import * as connection from 'connections';
 	import {
@@ -25,6 +26,7 @@
 
 	let errorMessage = $state('');
 	let successMessage = $state('');
+	let loading = $state(false);
 
 	const connectionTypes = [
 		{
@@ -62,6 +64,15 @@
 	 * @param data
 	 */
 	function allRequiredFieldsFilled(system: System) {
+		if (
+			system.systemId.length === 0 ||
+			system.defaultClient.length === 0 ||
+			system.defaultLanguage.length === 0 ||
+			system.displayName.length === 0
+		) {
+			return false;
+		}
+
 		if (connection.isRfcConnection(system.connection)) {
 			let params = system.connection.params;
 			if (!system.systemId || (params.sncEnabled && !params.sncName)) {
@@ -100,6 +111,26 @@
 		errorMessage = '';
 		let result = await onSubmit(systemData);
 		console.log('Submission result: ', result);
+		if (result.success) {
+			successMessage = result.message;
+		} else {
+			errorMessage = result.message;
+		}
+	}
+
+	async function onTestButtonPressed() {
+		if (!allRequiredFieldsFilled(systemData)) {
+			showMissingFields = true;
+			errorMessage = 'Fill in the mandatory connection parameters.';
+			successMessage = '';
+			return;
+		}
+		showMissingFields = false;
+		errorMessage = '';
+		loading = true;
+		let result = await onTest(systemData);
+		loading = false;
+		console.log('Test result: ', result);
 		if (result.success) {
 			successMessage = result.message;
 		} else {
@@ -262,18 +293,30 @@
 		</header>
 		<div class="input-group">
 			<div class="input-row">
-				<label class="label" for="">Save Connection as</label>
-				<TextInput style="flex-grow: 1" bind:value={systemData.displayName} />
+				<label class="label" for="">Save Connection as*</label>
+				<TextInput
+					style="flex-grow: 1"
+					bind:showRequired={showMissingFields}
+					bind:value={systemData.displayName}
+				/>
 			</div>
 
 			<div class="input-row">
-				<label class="label" for="">Default Client Number</label>
-				<TextInput style="flex-grow: 1" />
+				<label class="label" for="">Default Client Number*</label>
+				<TextInput
+					style="flex-grow: 1"
+					bind:value={systemData.defaultClient}
+					bind:showRequired={showMissingFields}
+				/>
 			</div>
 
 			<div class="input-row">
-				<label class="label" for="">Default Client Language</label>
-				<TextInput style="flex-grow: 1" />
+				<label class="label" for="">Default Client Language*</label>
+				<TextInput
+					style="flex-grow: 1"
+					bind:value={systemData.defaultLanguage}
+					bind:showRequired={showMissingFields}
+				/>
 			</div>
 		</div>
 	</section>
@@ -303,16 +346,19 @@
 			</div>
 		{/if}
 
+		{#if loading}
+			<div style="display: flex; align-items: center; gap: 8px">
+				<img src={LoadingIcon} alt="Loading" class="messageIcon" />
+				<span class="loadingMessage">Loading...</span>
+			</div>
+		{/if}
+
 		<div class="buttons">
 			<button type="button" onclick={onSubmitButtonPressed}
 				>Save Connection</button
 			>
-			<button
-				type="submit"
-				class="secondary"
-				onclick={() => {
-					onTest(systemData);
-				}}>Test Connection</button
+			<button type="submit" class="secondary" onclick={onTestButtonPressed}
+				>Test Connection</button
 			>
 		</div>
 	</footer>
@@ -334,6 +380,10 @@
 
 	.errorMessage {
 		color: rgb(255, 41, 41);
+	}
+
+	.loadingMessage {
+		color: #0db8df;
 	}
 
 	.warningMessage {

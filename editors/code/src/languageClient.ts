@@ -18,7 +18,7 @@ import { connect } from 'net';
 const silentErrorHandler: ErrorHandler = {
 	error(error: Error, message: any, count: number): ErrorHandlerResult {
 		console.error('Language server error:', error, message, `Attempt ${count}`);
-		return { handled: true, action: ErrorAction.Shutdown };
+		return { handled: true, action: ErrorAction.Continue };
 	},
 
 	closed(): CloseHandlerResult {
@@ -36,6 +36,7 @@ const debugServerOptions = (): Promise<StreamInfo> => {
 	let result: StreamInfo = {
 		writer: socket,
 		reader: socket,
+		detached: true,
 	};
 	return Promise.resolve(result);
 };
@@ -68,6 +69,9 @@ export async function spawnLanguageClient(
 	if (options?.silent) {
 		clientOptions.errorHandler = silentErrorHandler;
 		clientOptions.revealOutputChannelOn = RevealOutputChannelOn.Never;
+		clientOptions.initializationFailedHandler = () => {
+			return false;
+		};
 	}
 
 	if (process.env.NODE_ENV === 'development') {

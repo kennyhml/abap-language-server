@@ -38,6 +38,7 @@ export class AddConnectionPanel {
 						conn,
 						message.type === 'onTest',
 					);
+					console.log('Result:', result);
 					this._panel.webview.postMessage({
 						interactionId,
 						...result,
@@ -120,23 +121,24 @@ export class AddConnectionPanel {
 			`System: '${system.systemId}', data: '${JSON.stringify(system)}'`,
 		);
 
-		let client = await spawnLanguageClient(system, { silent: true });
+		let client = await spawnLanguageClient(system);
+		client.onDidChangeState((e) => {
+			console.log('State changed to', e);
+		});
 		if (test) {
 			try {
 				await client.start();
-			} catch (err: any) {
+				return {
+					success: true,
+					message: 'System is valid.',
+				};
+			} catch (e: any) {
+				console.log(e);
 				return {
 					success: false,
-					message: err.message ?? 'Could not start the language server',
+					message: e.message ?? 'Could not start the language server',
 				};
 			}
-
-			// Shut down the client again immediately,
-			await client.stop();
-			return {
-				success: true,
-				message: 'System is valid.',
-			};
 		}
 
 		let data = this.context.workspaceState.get('systems');
