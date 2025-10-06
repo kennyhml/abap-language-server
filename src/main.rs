@@ -1,14 +1,9 @@
-use std::error::Error as _;
-use std::fs::File;
-use std::io::Read;
-
 use adt_query::auth::Credentials;
 use adt_query::dispatch::StatelessDispatch;
 use adt_query::error::{DispatchError, OperationError};
-use reqwest::{Certificate, StatusCode};
+use reqwest::Certificate;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use tokio::io::AsyncReadExt;
+use std::error::Error as _;
 use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
@@ -22,30 +17,30 @@ struct Backend {
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TestConnectionParams {
-    pub url: String,
+pub struct InitializeConnectionParams {
+    pub hostname: String,
+
     pub port: u16,
 
-    pub client: Option<String>,
-    pub language: Option<String>,
+    pub ssl: bool,
+
+    pub custom_certificate: Option<String>,
+
+    pub accept_invalid_hostname: bool,
+
+    pub accept_invalid_certs: bool,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TestConnectionResult {
-    pub success: bool,
-    pub message: String,
+pub struct InitializeConnectionResult {
+    /// The name of the resolved url based on ssl/tls, hostname & port
+    pub resolved_url: String,
 }
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
-        self.connect_to_adt(
-            params
-                .initialization_options
-                .ok_or(Error::invalid_params("missing initialize options."))?,
-        )
-        .await?;
+    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 ..Default::default()
@@ -66,63 +61,45 @@ impl LanguageServer for Backend {
 }
 
 impl Backend {
-    async fn connect_to_adt(&self, params: Value) -> Result<()> {
-        let hostname = params
-            .get("hostname")
-            .and_then(|v| v.as_str())
-            .ok_or(Error::invalid_params("missing hostname"))?;
-
-        let port = params
-            .get("port")
-            .and_then(|v| v.as_u64())
-            .ok_or(Error::invalid_params("missing port"))?;
-
-        let ssl = params
-            .get("ssl")
-            .and_then(|v| v.as_bool())
-            .ok_or(Error::invalid_params("missing ssl/tls specification"))?;
-
+    /// Handles `connection/initialize`, separate this from the process of initializing
+    /// the language server itself as it makes defining the request more robust
+    /// and handling a language server that fails to initialize is a pain in the ass.
+    async fn initialize_connection(
+        &self,
+        params: InitializeConnectionParams,
+    ) -> Result<InitializeConnectionResult> {
         let mut dispatcher = reqwest::Client::builder();
 
         // Remove http / https from hostname since it will be added based on http / https
-        let mut url = hostname.replace("http://", "").replace("https://", "");
-        if ssl {
-            url = format!("https://{hostname}");
+        let mut url = params
+            .hostname
+            .replace("http://", "")
+            .replace("https://", "");
+
+        if params.ssl {
+            url = format!("https://{url}:{}", params.port);
             dispatcher = dispatcher.use_native_tls();
 
-            if let Some(cert) = params.get("customCertificate").and_then(|v| v.as_str()) {
-                let certificate = Certificate::from_pem(
-                    &std::fs::read(cert)
-                        .map_err(|_| Error::invalid_params("invalid custom certificate"))?,
-                )
-                .map_err(|_| Error::invalid_params("invalid custom certificate"))?;
-                dispatcher = dispatcher.add_root_certificate(certificate);
-            }
+            if let Some(cert) = params.custom_certificate {
+                let pem = std::fs::read(cert)
+                    .map_err(|_| Error::invalid_params("Invalid certificate path"))?;
 
-            if params
-                .get("acceptInvalidHostname")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-            {
-                dispatcher = dispatcher.danger_accept_invalid_hostnames(true);
+                let cert = Certificate::from_pem(&pem)
+                    .map_err(|_| Error::invalid_params("Invalid certificate"))?;
+                dispatcher = dispatcher.add_root_certificate(cert);
             }
-            if params
-                .get("acceptInvalidCerts")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-            {
-                dispatcher = dispatcher.danger_accept_invalid_certs(true);
-            }
+            dispatcher = dispatcher
+                .danger_accept_invalid_hostnames(params.accept_invalid_hostname)
+                .danger_accept_invalid_certs(params.accept_invalid_certs);
         } else {
-            url = format!("http://{hostname}");
+            url = format!("http://{url}:{}", params.port);
         }
 
-        let mut url = Url::parse(&url).map_err(|_| Error::invalid_params("invalid hostname"))?;
-        url.set_port(Some(port as u16))
-            .map_err(|_| Error::invalid_params("invalid port"))?;
+        let url = Url::parse(&url)
+            .map_err(|_| Error::invalid_params(format!("Resolved URL '{url}' is invalid.")))?;
 
         let connection = HttpConnectionBuilder::default()
-            .hostname(url)
+            .hostname(url.clone())
             .client("001")
             .language("en")
             .build()
@@ -151,7 +128,9 @@ impl Backend {
             }
             _ => {}
         }
-        return Ok(());
+        return Ok(InitializeConnectionResult {
+            resolved_url: url.into(),
+        });
     }
 }
 
@@ -160,20 +139,8 @@ async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let (service, socket) = LspService::new(|client| Backend { client });
+    let (service, socket) = LspService::build(|client| Backend { client })
+        .custom_method("connection/initialize", Backend::initialize_connection)
+        .finish();
     Server::new(stdin, stdout, socket).serve(service).await;
 }
-
-// #[tokio::main]
-// async fn main() -> Result<()> {
-//     let listener = TcpListener::bind("127.0.0.1:5007").await.unwrap();
-
-//     loop {
-//         let (stream, _) = listener.accept().await.unwrap();
-//         let (service, socket) = LspService::build(|client| Backend { client })
-//             // .custom_method("connection/test", Backend::test_connection)
-//             .finish();
-//         let (read, write) = tokio::io::split(stream);
-//         Server::new(read, write, socket).serve(service).await;
-//     }
-// }

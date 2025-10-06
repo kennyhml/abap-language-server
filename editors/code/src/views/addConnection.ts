@@ -1,4 +1,5 @@
 import {
+	isRfcConnection,
 	type LandscapeSystem,
 	type SubmissionResult,
 	type System,
@@ -105,38 +106,47 @@ export class AddConnectionPanel {
 		console.log(
 			`System: '${system.systemId}', data: '${JSON.stringify(system)}'`,
 		);
+		if (isRfcConnection(system.connection)) {
+			throw Error('not supported');
+		}
 
 		let client = await createClient(system, { silent: true });
+		await client.start();
 
+		let result: any;
 		try {
-			await client.start();
-			await client.stop();
-			client.outputChannel.dispose();
-		} catch (e: any) {
-			console.error(e);
-			client.dispose().catch((e) => {
-				console.error('Could not dispose: ', e);
+			result = await client.sendRequest('connection/initialize', {
+				...system.connection.params,
 			});
-			// client.outputChannel.dispose();
+		} catch (err: any) {
+			console.error('Establishing ADT connection failed: ', err.message);
 			return {
 				success: false,
-				message: e.message ?? 'Unknown error.',
+				message: err.message ?? 'Unknown error.',
 			};
+		} finally {
+			client
+				.stop()
+				.then(() => {
+					console.log('Server has been stopped.');
+				})
+				.catch((err) => {
+					console.error('Could not stop the server: ', err);
+				});
 		}
 		if (test) {
 			return {
 				success: true,
-				message: 'Connection is valid.',
+				message: 'System valid, resolved url: ' + result.resolvedUrl,
 			};
 		}
-
 		let data = this.context.workspaceState.get('systems');
 		let systems = (data ?? []) as System[];
 		systems.push(system);
 		this.context.workspaceState.update('systems', systems);
 		return {
 			success: true,
-			message: 'System added to workspace',
+			message: 'System added to workspace, resolved url: ' + result.resolvedUrl,
 		};
 	}
 }

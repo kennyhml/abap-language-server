@@ -16,7 +16,7 @@ import * as vscode from 'vscode';
 const silentShutdown: ErrorHandler = {
 	error(error: Error, message: any, count: number): ErrorHandlerResult {
 		console.error('Language server error:', error, message, `Attempt ${count}`);
-		return { handled: true, action: ErrorAction.Shutdown };
+		return { handled: true, action: ErrorAction.Continue };
 	},
 
 	closed(): CloseHandlerResult {
@@ -49,10 +49,6 @@ export async function createClient(
 
 	if (options?.silent) {
 		clientOptions.errorHandler = silentShutdown;
-		clientOptions.initializationFailedHandler = (err: Error) => {
-			console.error(err);
-			return false;
-		};
 	}
 
 	const serverOptions: ServerOptions = {
