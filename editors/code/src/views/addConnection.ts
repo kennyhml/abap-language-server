@@ -121,7 +121,7 @@ export class AddConnectionPanel {
 			`System: '${system.systemId}', data: '${JSON.stringify(system)}'`,
 		);
 
-		let client = await spawnLanguageClient(system);
+		let client = await spawnLanguageClient(system, { silent: true });
 		client.onDidChangeState((e) => {
 			console.log('State changed to', e);
 		});

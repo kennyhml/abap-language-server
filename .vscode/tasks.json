@@ -4,6 +4,7 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "Build Extension (Debug)",
 			"type": "npm",
 			"script": "dev",
 			"problemMatcher": {
@@ -34,6 +35,7 @@
 			}
 		},
 		{
+			"label": "Build Extension (Release)",
 			"type": "npm",
 			"script": "build",
 			"path": "editors/code/",
@@ -42,6 +44,36 @@
 				"isDefault": true
 			},
 			"problemMatcher": []
-		}
+		},
+		{
+			"label": "Build Server (Debug)",
+			"group": "build",
+			"type": "shell",
+			"command": "cargo build --package abap-lsp",
+			"problemMatcher": "$rustc"
+		},
+		{
+			"label": "Build Server (Release)",
+			"group": "build",
+			"type": "shell",
+			"command": "cargo build --release --package abap-lsp",
+			"problemMatcher": "$rustc"
+		},
+		{
+			"label": "Build Server and Extension (Release)",
+			"dependsOn": [
+				"Build Server (Release)",
+				"Build Extension (Release)"
+			],
+			"problemMatcher": "$rustc"
+		},
+		{
+			"label": "Build Server and Extension (Debug)",
+			"dependsOn": [
+				"Build Server (Debug)",
+				"Build Extension (Debug)"
+			],
+			"problemMatcher": "$rustc"
+		},
 	]
 }

@@ -9,6 +9,7 @@
 			"name": "Debug Extension",
 			"type": "extensionHost",
 			"request": "launch",
+			"runtimeExecutable": "${execPath}",
 			"args": [
 				"--disable-extensions",
 				"--extensionDevelopmentPath=${workspaceFolder}/editors/code"
@@ -16,19 +17,23 @@
 			"outFiles": [
 				"${workspaceFolder}/editors/code/dist/extension/*.js"
 			],
-			"preLaunchTask": "npm: dev"
+			"preLaunchTask": "Build Server and Extension (Debug)",
+			"env": {
+				"__ABAP_LSP_SERVER_DEBUG": "${workspaceFolder}/target/debug/abap-lsp"
+			}
 		},
 		{
 			"name": "Preview Extension",
 			"type": "extensionHost",
 			"request": "launch",
+			"runtimeExecutable": "${execPath}",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}/editors/code"
 			],
 			"outFiles": [
 				"${workspaceFolder}/editors/code/dist/extension/*.js"
 			],
-			"preLaunchTask": "npm: build"
+			"preLaunchTask": "Build Server and Extension (Release)"
 		}
 	]
 }
