@@ -87,7 +87,7 @@
 		} else {
 			return (
 				system.systemId &&
-				system.connection.params.url &&
+				system.connection.params.hostname &&
 				system.connection.params.port
 			);
 		}
@@ -109,6 +109,7 @@
 		}
 		showMissingFields = false;
 		errorMessage = '';
+
 		let result = await onSubmit(systemData);
 		console.log('Submission result: ', result);
 		if (result.success) {
@@ -230,7 +231,7 @@
 					<label class="label" for="">Hostname*</label>
 					<TextInput
 						style="flex-grow: 1"
-						bind:value={systemData.connection.params.url}
+						bind:value={systemData.connection.params.hostname}
 						bind:showRequired={showMissingFields}
 					/>
 				</div>
@@ -240,6 +241,7 @@
 						style="flex-grow: 1"
 						bind:value={systemData.connection.params.port}
 						bind:showRequired={showMissingFields}
+						type="number"
 					/>
 				</div>
 			{/if}
@@ -349,7 +351,7 @@
 		{#if loading}
 			<div style="display: flex; align-items: center; gap: 8px">
 				<img src={LoadingIcon} alt="Loading" class="messageIcon" />
-				<span class="loadingMessage">Loading...</span>
+				<span class="loadingMessage">Testing Connection...</span>
 			</div>
 		{/if}
 
@@ -379,19 +381,23 @@
 	}
 
 	.errorMessage {
-		color: rgb(255, 41, 41);
+		color: rgb(251, 37, 37);
+		font-weight: bold;
 	}
 
 	.loadingMessage {
 		color: #0db8df;
+		font-weight: bold;
 	}
 
 	.warningMessage {
 		color: rgb(223, 223, 38);
+		font-weight: bold;
 	}
 
 	.successMessage {
 		color: rgb(0, 255, 0);
+		font-weight: bold;
 	}
 
 	.buttons {

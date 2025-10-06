@@ -4,7 +4,7 @@ import {
 	type SubmissionResult,
 	type System,
 } from 'connections';
-import { spawnLanguageClient } from 'languageClient';
+import { createClient } from 'languageClient';
 import type { Disposable, ExtensionContext, WebviewPanel } from 'vscode';
 import * as vscode from 'vscode';
 import { ViewColumn, window } from 'vscode';
@@ -105,7 +105,7 @@ export class AddConnectionPanel {
 					kind: ConnectionProtocols.HTTP,
 					params: {
 						port: 50000,
-						url: 'http://localhost',
+						hostname: 'http://localhost',
 					},
 				},
 			});
@@ -121,22 +121,27 @@ export class AddConnectionPanel {
 			`System: '${system.systemId}', data: '${JSON.stringify(system)}'`,
 		);
 
-		let client = await spawnLanguageClient(system, { silent: true });
-		client.onDidChangeState((e) => {
-			console.log('State changed to', e);
-		});
+		let client = await createClient(system, { silent: true });
+
 		if (test) {
 			try {
 				await client.start();
+				await client.stop();
+				client.outputChannel.dispose();
+
 				return {
 					success: true,
-					message: 'System is valid.',
+					message: 'Connection is valid, got an expected response.',
 				};
 			} catch (e: any) {
-				console.log(e);
+				console.error(e);
+				client.dispose().catch((e) => {
+					console.error('Could not dispose: ', e);
+				});
+				client.outputChannel.dispose();
 				return {
 					success: false,
-					message: e.message ?? 'Could not start the language server',
+					message: e.message ?? 'Unknown error.',
 				};
 			}
 		}

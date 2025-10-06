@@ -73,22 +73,27 @@ impl Backend {
             .and_then(|v| v.as_u64())
             .ok_or(Error::invalid_params("missing port"))?;
 
-        let mut url = Url::parse(url).unwrap();
-        url.set_port(Some(port as u16)).unwrap();
+        let mut url = Url::parse(url).map_err(|_| Error::invalid_params("invalid hostname"))?;
+        url.set_port(Some(port as u16))
+            .map_err(|_| Error::invalid_params("invalid port"))?;
+
+        self.client
+            .log_message(MessageType::INFO, format!("Making request to {}..", url))
+            .await;
 
         let connection = HttpConnectionBuilder::default()
             .hostname(url)
             .client("001")
             .language("en")
             .build()
-            .unwrap();
+            .map_err(|_| Error::internal_error())?;
 
         let client = ClientBuilder::default()
             .connection_params(ConnectionParameters::Http(connection))
             .dispatcher(reqwest::Client::new())
             .credentials(Credentials::new("Mock", "Test"))
             .build()
-            .unwrap();
+            .map_err(|_| Error::internal_error())?;
 
         let operation = adt_query::api::core::CoreDiscovery {};
         match operation.dispatch(&client).await {

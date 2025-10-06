@@ -122,7 +122,7 @@
 						{/if}
 						<td>{system.connection.params.sapRouterString}</td>
 					{:else}
-						<td>{system.connection.params.url}</td>
+						<td>{system.connection.params.hostname}</td>
 						<td>{system.connection.params.port}</td>
 					{/if}
 				</tr>

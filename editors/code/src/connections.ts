@@ -34,7 +34,7 @@ export const DEFAULT_HTTP_SYSTEM: System = {
 		kind: ConnectionProtocols.HTTP,
 		params: {
 			port: 50000,
-			url: '',
+			hostname: '',
 		},
 	},
 };
@@ -96,7 +96,7 @@ type RfcCustomApplicationServer = {
  * Connection properties for a HTTP(S) connection.
  */
 type HttpCommonProperties = {
-	url: string;
+	hostname: string;
 	port: number;
 };
 

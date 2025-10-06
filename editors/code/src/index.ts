@@ -9,12 +9,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		}),
 	);
 
-	context.subscriptions.push(
-		vscode.commands.registerCommand('abap.connectToSystem', (...args) => {
-			vscode.window.showInformationMessage('Connecting..');
-		}),
-	);
-
 	vscode.window.registerTreeDataProvider(
 		'systems',
 		new ConnectionTreeProvider(context),

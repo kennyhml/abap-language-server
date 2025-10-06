@@ -4,7 +4,6 @@ import {
 	CloseAction,
 	ErrorAction,
 	LanguageClient,
-	RevealOutputChannelOn,
 	type CloseHandlerResult,
 	type ErrorHandler,
 	type ErrorHandlerResult,
@@ -12,6 +11,7 @@ import {
 	type ServerOptions,
 	TransportKind,
 } from 'vscode-languageclient/node';
+import * as vscode from 'vscode';
 
 const silentShutdown: ErrorHandler = {
 	error(error: Error, message: any, count: number): ErrorHandlerResult {
@@ -25,28 +25,23 @@ const silentShutdown: ErrorHandler = {
 	},
 };
 
-const prodServerOptions: ServerOptions = {
-	command:
-		process.env['__ABAP_LSP_SERVER_DEBUG'] ??
-		'C:/dev/abap-lsp/target/debug/abap-lsp.exe',
-	transport: TransportKind.stdio,
-};
-
-export async function spawnLanguageClient(
+export async function createClient(
 	system: System,
 	options?: {
 		silent?: boolean;
 	},
 ): Promise<LanguageClient> {
 	let clientOptions: LanguageClientOptions;
-	let serverOptions: ServerOptions;
+
+	let ch = vscode.window.createOutputChannel('ABAP Language Server', 'abap');
 
 	if (isHttpConnection(system.connection)) {
 		clientOptions = {
 			initializationOptions: {
-				port: 50000,
-				hostname: 'http://127.0.0.1',
+				port: system.connection.params.port,
+				hostname: system.connection.params.hostname,
 			},
+			outputChannel: ch,
 		};
 	} else {
 		throw Error('not supported');
@@ -54,13 +49,18 @@ export async function spawnLanguageClient(
 
 	if (options?.silent) {
 		clientOptions.errorHandler = silentShutdown;
-		clientOptions.revealOutputChannelOn = RevealOutputChannelOn.Never;
-		clientOptions.initializationFailedHandler = () => {
+		clientOptions.initializationFailedHandler = (err: Error) => {
+			console.error(err);
 			return false;
 		};
 	}
 
-	serverOptions = prodServerOptions;
+	const serverOptions: ServerOptions = {
+		command:
+			process.env['__ABAP_LSP_SERVER_DEBUG'] ??
+			'C:/dev/abap-lsp/target/debug/abap-lsp.exe',
+		transport: TransportKind.stdio,
+	};
 
 	return new LanguageClient(
 		'abap',
