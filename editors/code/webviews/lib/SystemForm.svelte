@@ -101,14 +101,13 @@
 	 * missing fields and displays an error message.
 	 */
 	async function onSubmitButtonPressed() {
+		successMessage = errorMessage = '';
 		if (!allRequiredFieldsFilled(systemData)) {
 			showMissingFields = true;
 			errorMessage = 'Fill in the mandatory connection parameters.';
-			successMessage = '';
 			return;
 		}
 		showMissingFields = false;
-		errorMessage = '';
 
 		let result = await onSubmit(systemData);
 		console.log('Submission result: ', result);
@@ -120,18 +119,16 @@
 	}
 
 	async function onTestButtonPressed() {
+		successMessage = errorMessage = '';
 		if (!allRequiredFieldsFilled(systemData)) {
 			showMissingFields = true;
 			errorMessage = 'Fill in the mandatory connection parameters.';
-			successMessage = '';
 			return;
 		}
 		showMissingFields = false;
-		errorMessage = '';
 		loading = true;
 		let result = await onTest(systemData);
 		loading = false;
-		console.log('Test result: ', result);
 		if (result.success) {
 			successMessage = result.message;
 		} else {
@@ -248,11 +245,11 @@
 		</div>
 	</section>
 
-	{#if isRfcConnection(systemData.connection)}
-		<section style="width: 100%;">
-			<header>
-				<h3 class="config-header">Secure Network Settings</h3>
-			</header>
+	<section style="width: 100%;">
+		<header>
+			<h3 class="config-header">Secure Connection Settings</h3>
+		</header>
+		{#if isRfcConnection(systemData.connection)}
 			<div class="input-group">
 				<div class="input-row">
 					<label class="label" for="">SNC Enabled</label>
@@ -286,8 +283,40 @@
 					</div>
 				{/if}
 			</div>
-		</section>
-	{/if}
+		{:else}
+			<div class="input-group">
+				<div class="input-row">
+					<label class="label" for="">SSL/TLS Encrypted</label>
+					<VSCheckBox bind:value={systemData.connection.params.ssl}
+					></VSCheckBox>
+				</div>
+
+				{#if systemData.connection.params.ssl}
+					<div class="input-row">
+						<label class="label" for="">Accept Invalid Certificates</label>
+						<VSCheckBox
+							bind:value={systemData.connection.params.acceptInvalidCerts}
+						></VSCheckBox>
+					</div>
+
+					<div class="input-row">
+						<label class="label" for="">Accept Invalid Hostnames</label>
+						<VSCheckBox
+							bind:value={systemData.connection.params.acceptInvalidHostname}
+						></VSCheckBox>
+					</div>
+
+					<div class="input-row">
+						<label class="label" for="">Custom Certificate</label>
+						<TextInput
+							style="flex-grow: 1"
+							bind:value={systemData.connection.params.customCertificate}
+						/>
+					</div>
+				{/if}
+			</div>
+		{/if}
+	</section>
 
 	<section style="width: 100%;">
 		<header>

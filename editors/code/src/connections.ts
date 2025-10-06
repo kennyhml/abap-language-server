@@ -33,8 +33,11 @@ export const DEFAULT_HTTP_SYSTEM: System = {
 	connection: {
 		kind: ConnectionProtocols.HTTP,
 		params: {
-			port: 50000,
-			hostname: '',
+			port: 50001,
+			hostname: '127.0.0.1',
+			ssl: true,
+			acceptInvalidCerts: false,
+			acceptInvalidHostname: false,
 		},
 	},
 };
@@ -96,8 +99,48 @@ type RfcCustomApplicationServer = {
  * Connection properties for a HTTP(S) connection.
  */
 type HttpCommonProperties = {
+	/**
+	 * The hostname of the server to connect to (e.g., 'example.com').
+	 * Must not include the protocol (e.g., 'https://').
+	 * @example '127.0.0.1'
+	 */
 	hostname: string;
+
+	/**
+	 * The port number to connect to the server on.
+	 * Common ports include 80 for HTTP and 443 for HTTPS.
+	 * @example 50001
+	 */
 	port: number;
+
+	/**
+	 * Specifies whether the connection should use SSL/TLS encryption for security.
+	 * Set to `true` for HTTPS connections, `false` for HTTP.
+	 * @default true
+	 */
+	ssl: boolean;
+
+	/**
+	 * Path to a custom certificate file (.pem) used to verify the server's identity.
+	 * Leave undefined if using default system certificates.
+	 * @example './certs/server-cert.pem'
+	 */
+	customCertificate?: string;
+
+	/**
+	 * Whether to tolerate a hostname mismatch in the server's certificate.
+	 * Enable this only in controlled environments, as it reduces security.
+	 * @default false
+	 */
+	acceptInvalidHostname: boolean;
+
+	/**
+	 * Whether to trust the server's certificate regardless of its validity.
+	 * Use with extreme caution, as this bypasses critical security checks.
+	 * Only enable in testing or when absolutely necessary.
+	 * @default false
+	 */
+	acceptInvalidCerts: boolean;
 };
 
 /**

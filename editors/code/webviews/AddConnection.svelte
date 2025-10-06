@@ -17,20 +17,7 @@
 
 	let selectedProtocol: ConnectionProtocol = $state(ConnectionProtocols.HTTP);
 	let landscapeSystems: LandscapeSystem[] = $state([]);
-	let systemData: System = $state({
-		connection: {
-			kind: ConnectionProtocols.HTTP,
-			params: {
-				url: '',
-				port: 8000,
-			},
-		},
-		systemId: '',
-		defaultClient: '001',
-		defaultLanguage: 'en',
-		description: '',
-		displayName: '',
-	});
+	let systemData: System = $state(DEFAULT_HTTP_SYSTEM);
 
 	async function onRefreshLandscape() {
 		landscapeSystems = await getAvailableConnections();

@@ -38,8 +38,8 @@ export async function createClient(
 	if (isHttpConnection(system.connection)) {
 		clientOptions = {
 			initializationOptions: {
-				port: system.connection.params.port,
-				hostname: system.connection.params.hostname,
+				systemId: system.systemId,
+				...system.connection.params,
 			},
 			outputChannel: ch,
 		};

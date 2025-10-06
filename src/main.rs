@@ -1,10 +1,14 @@
+use std::error::Error as _;
+use std::fs::File;
+use std::io::Read;
+
 use adt_query::auth::Credentials;
 use adt_query::dispatch::StatelessDispatch;
 use adt_query::error::{DispatchError, OperationError};
-use reqwest::StatusCode;
+use reqwest::{Certificate, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::net::TcpListener;
+use tokio::io::AsyncReadExt;
 use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
@@ -63,7 +67,7 @@ impl LanguageServer for Backend {
 
 impl Backend {
     async fn connect_to_adt(&self, params: Value) -> Result<()> {
-        let url = params
+        let hostname = params
             .get("hostname")
             .and_then(|v| v.as_str())
             .ok_or(Error::invalid_params("missing hostname"))?;
@@ -73,13 +77,49 @@ impl Backend {
             .and_then(|v| v.as_u64())
             .ok_or(Error::invalid_params("missing port"))?;
 
-        let mut url = Url::parse(url).map_err(|_| Error::invalid_params("invalid hostname"))?;
+        let ssl = params
+            .get("ssl")
+            .and_then(|v| v.as_bool())
+            .ok_or(Error::invalid_params("missing ssl/tls specification"))?;
+
+        let mut dispatcher = reqwest::Client::builder();
+
+        // Remove http / https from hostname since it will be added based on http / https
+        let mut url = hostname.replace("http://", "").replace("https://", "");
+        if ssl {
+            url = format!("https://{hostname}");
+            dispatcher = dispatcher.use_native_tls();
+
+            if let Some(cert) = params.get("customCertificate").and_then(|v| v.as_str()) {
+                let certificate = Certificate::from_pem(
+                    &std::fs::read(cert)
+                        .map_err(|_| Error::invalid_params("invalid custom certificate"))?,
+                )
+                .map_err(|_| Error::invalid_params("invalid custom certificate"))?;
+                dispatcher = dispatcher.add_root_certificate(certificate);
+            }
+
+            if params
+                .get("acceptInvalidHostname")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
+                dispatcher = dispatcher.danger_accept_invalid_hostnames(true);
+            }
+            if params
+                .get("acceptInvalidCerts")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
+                dispatcher = dispatcher.danger_accept_invalid_certs(true);
+            }
+        } else {
+            url = format!("http://{hostname}");
+        }
+
+        let mut url = Url::parse(&url).map_err(|_| Error::invalid_params("invalid hostname"))?;
         url.set_port(Some(port as u16))
             .map_err(|_| Error::invalid_params("invalid port"))?;
-
-        self.client
-            .log_message(MessageType::INFO, format!("Making request to {}..", url))
-            .await;
 
         let connection = HttpConnectionBuilder::default()
             .hostname(url)
@@ -90,7 +130,7 @@ impl Backend {
 
         let client = ClientBuilder::default()
             .connection_params(ConnectionParameters::Http(connection))
-            .dispatcher(reqwest::Client::new())
+            .dispatcher(dispatcher.build().map_err(|_| Error::internal_error())?)
             .credentials(Credentials::new("Mock", "Test"))
             .build()
             .map_err(|_| Error::internal_error())?;
@@ -99,9 +139,14 @@ impl Backend {
         match operation.dispatch(&client).await {
             Err(OperationError::DispatchError(DispatchError::ReqwestError(e))) => {
                 if e.is_connect() {
-                    let mut e = Error::new(ErrorCode::InternalError);
-                    e.message = "Server did not respond.".into();
-                    return Err(e);
+                    let mut err = Error::new(ErrorCode::InternalError);
+                    err.message = e
+                        .source()
+                        .and_then(|e| e.source())
+                        .map(|e| e.to_string())
+                        .unwrap_or(e.to_string())
+                        .into();
+                    return Err(err);
                 }
             }
             _ => {}

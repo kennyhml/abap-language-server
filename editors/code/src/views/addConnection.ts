@@ -1,5 +1,4 @@
 import {
-	ConnectionProtocols,
 	type LandscapeSystem,
 	type SubmissionResult,
 	type System,
@@ -96,20 +95,6 @@ export class AddConnectionPanel {
 
 	private getAvailableConnections() {
 		let connections: LandscapeSystem[] = [];
-		for (let i = 0; i < 30; i++) {
-			connections.push({
-				systemId: `W${i}D`,
-				name: 'W4D Logistics',
-				description: 'Some description',
-				connection: {
-					kind: ConnectionProtocols.HTTP,
-					params: {
-						port: 50000,
-						hostname: 'http://localhost',
-					},
-				},
-			});
-		}
 		return connections;
 	}
 
@@ -123,27 +108,26 @@ export class AddConnectionPanel {
 
 		let client = await createClient(system, { silent: true });
 
+		try {
+			await client.start();
+			await client.stop();
+			client.outputChannel.dispose();
+		} catch (e: any) {
+			console.error(e);
+			client.dispose().catch((e) => {
+				console.error('Could not dispose: ', e);
+			});
+			// client.outputChannel.dispose();
+			return {
+				success: false,
+				message: e.message ?? 'Unknown error.',
+			};
+		}
 		if (test) {
-			try {
-				await client.start();
-				await client.stop();
-				client.outputChannel.dispose();
-
-				return {
-					success: true,
-					message: 'Connection is valid, got an expected response.',
-				};
-			} catch (e: any) {
-				console.error(e);
-				client.dispose().catch((e) => {
-					console.error('Could not dispose: ', e);
-				});
-				client.outputChannel.dispose();
-				return {
-					success: false,
-					message: e.message ?? 'Unknown error.',
-				};
-			}
+			return {
+				success: true,
+				message: 'Connection is valid.',
+			};
 		}
 
 		let data = this.context.workspaceState.get('systems');
