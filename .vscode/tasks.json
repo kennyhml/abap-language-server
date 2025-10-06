@@ -24,6 +24,7 @@
 				}
 			},
 			"isBackground": true,
+			"path": "editors/code/",
 			"presentation": {
 				"reveal": "never"
 			},
@@ -35,6 +36,7 @@
 		{
 			"type": "npm",
 			"script": "build",
+			"path": "editors/code/",
 			"group": {
 				"kind": "build",
 				"isDefault": true

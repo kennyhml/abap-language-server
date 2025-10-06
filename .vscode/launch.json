@@ -11,10 +11,10 @@
 			"request": "launch",
 			"args": [
 				"--disable-extensions",
-				"--extensionDevelopmentPath=${workspaceFolder}"
+				"--extensionDevelopmentPath=${workspaceFolder}/editors/code"
 			],
 			"outFiles": [
-				"${workspaceFolder}/dist/extension/*.js"
+				"${workspaceFolder}/editors/code/dist/extension/*.js"
 			],
 			"preLaunchTask": "npm: dev"
 		},
@@ -23,10 +23,10 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}"
+				"--extensionDevelopmentPath=${workspaceFolder}/editors/code"
 			],
 			"outFiles": [
-				"${workspaceFolder}/dist/extension/*.js"
+				"${workspaceFolder}/editors/code/dist/extension/*.js"
 			],
 			"preLaunchTask": "npm: build"
 		}
