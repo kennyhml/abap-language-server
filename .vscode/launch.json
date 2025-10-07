@@ -18,7 +18,7 @@
 			],
 			"preLaunchTask": "Build Server and Extension (Debug)",
 			"env": {
-				"__ABAP_LSP_SERVER_DEBUG": "${workspaceFolder}/target/debug/abap-lsp"
+				"__ABAP_LSP_SERVER_DEBUG": "${workspaceFolder}/target/debug/abap-language-server"
 			}
 		},
 		{
