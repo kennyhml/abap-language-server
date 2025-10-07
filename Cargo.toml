@@ -1,17 +1,15 @@
-[package]
-name = "abap-lsp"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+members = ["lib/*", "crates/*"]
+resolver = "2"
 
-[dependencies]
+[workspace.dependencies]
 tower-lsp = "0.20.0"
 tokio = { version = "1.47.1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-adt-query = { path = "C:/dev/adt-query", features = ["reqwest"] }
+adt-query = { path = "./lib/adt-query", features = ["reqwest"] }
 reqwest = { version = "0.12", features = [
     "native-tls",
     "blocking",
     "rustls-tls",
 ] }
-hyper-util = "0.1.17"

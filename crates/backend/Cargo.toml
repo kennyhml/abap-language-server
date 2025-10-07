@@ -1,0 +1,13 @@
+[package]
+name = "abap-lsp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tower-lsp.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+adt-query.workspace = true
+reqwest.workspace = true
