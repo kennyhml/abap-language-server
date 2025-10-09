@@ -9,11 +9,10 @@ import type { Disposable, ExtensionContext, WebviewPanel } from 'vscode';
 import * as vscode from 'vscode';
 import { ViewColumn, window } from 'vscode';
 
-export class EditConnectionPanel {
+export class EditConnectionPanel implements Disposable {
 	private disposables: Disposable[] = [];
 	private panel: WebviewPanel;
 	private messageChannel: MessageChannel<EditConnectionMessages>;
-	private static instance: EditConnectionPanel | undefined;
 
 	private constructor(
 		private connectionProvider: SystemConnectionProvider,
@@ -70,28 +69,34 @@ export class EditConnectionPanel {
 		this.messageChannel.send('initialize', { connection: connectionToEdit });
 	}
 
-	public static render(
+	public static async render(
 		context: ExtensionContext,
 		connectionToEdit: SystemConnection,
 		connectionProvider: SystemConnectionProvider,
 	) {
-		if (this.instance) {
-			this.instance.panel.reveal(ViewColumn.One);
-		} else {
-			this.instance = new EditConnectionPanel(
-				connectionProvider,
-				connectionToEdit,
-				context,
-			);
+		let layout = (await vscode.commands.executeCommand(
+			'vscode.getEditorLayout',
+		)) as any;
+
+		// Only if there is only a single panel open we will split into two
+		// columns to open the view to the right side. Ideally, we would
+		// somehow open it on the left to be closer to the side panel..
+		if (layout.groups.length === 1 && layout.orientation === 1) {
+			await vscode.commands.executeCommand('vscode.setEditorLayout', {
+				orientation: 0,
+				groups: [
+					{ groups: [{}], size: 0.5 },
+					{ groups: [{}], size: 0.5 },
+				],
+			});
 		}
+		new EditConnectionPanel(connectionProvider, connectionToEdit, context);
 	}
 
 	/**
 	 * Cleans up and disposes of webview resources when the webview panel is closed.
 	 */
 	public dispose() {
-		EditConnectionPanel.instance = undefined;
-
 		this.panel.dispose();
 		while (this.disposables.length) {
 			const disposable = this.disposables.pop();

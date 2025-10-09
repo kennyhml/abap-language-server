@@ -87,7 +87,11 @@
       {
         "command": "abap.editSystemConnection",
         "title": "Edit Connection",
-        "shortTitle": "Short"
+        "shortTitle": "Short",
+        "icon": {
+          "dark": "webviews/assets/edit.svg",
+          "light": "webviews/assets/edit.svg"
+        }
       },
       {
         "command": "abap.deleteSystemConnection",
@@ -123,17 +127,22 @@
         {
           "command": "abap.connectToSystem",
           "when": "viewItem == disconnected",
-          "group": "inline"
+          "group": "inline@2"
         },
         {
           "command": "abap.disconnectFromSystem",
           "when": "viewItem == connected",
-          "group": "inline"
+          "group": "inline@2"
         },
         {
           "command": "abap.editSystemConnection",
           "when": "viewItem == disconnected",
           "group": "1_modification"
+        },
+        {
+          "command": "abap.editSystemConnection",
+          "when": "viewItem == disconnected",
+          "group": "inline@1"
         },
         {
           "command": "abap.deleteSystemConnection",
