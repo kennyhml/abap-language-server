@@ -112,7 +112,10 @@ export class SystemConnectionProvider {
 		}
 	}
 
-	public updateConnection(name: string, newData: SystemConnection): void {
+	public async updateConnection(
+		name: string,
+		newData: SystemConnection,
+	): Promise<ConnectionResult> {
 		let index = this.connections.findIndex((s) => s.name === name);
 		if (index === -1) {
 			throw Error('System Connection not found');
@@ -120,8 +123,17 @@ export class SystemConnectionProvider {
 		if (this.connections[index].state === ConnectionState.connected) {
 			throw Error('Cannot update active system connection.');
 		}
+		console.log(`Verifying new connection data..`);
+		let verificationResult = await this.testConnection(newData);
+		if (!verificationResult.success) {
+			return verificationResult;
+		}
 		this.connections[index] = newData;
 		this.dumpSystemConnections();
+		return {
+			success: true,
+			message: 'Connection updated.',
+		};
 	}
 
 	private loadSystemConnections(): SystemConnection[] {

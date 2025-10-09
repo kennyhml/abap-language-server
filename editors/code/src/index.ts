@@ -3,6 +3,7 @@ import { AddConnectionPanel } from './panels/addConnection';
 import { SystemConnectionProvider } from 'adapters/connectionProvider';
 import { ConnectionTreeProvider } from 'views/connectionTree';
 import type { SystemConnection } from 'core';
+import { EditConnectionPanel } from 'panels/editConnection';
 
 export async function activate(context: vscode.ExtensionContext) {
 	let systemProvider = new SystemConnectionProvider(context.workspaceState);
@@ -11,6 +12,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('abap.openAddConnectionScreen', () => {
 			AddConnectionPanel.render(context, systemProvider);
 		}),
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			'abap.editSystemConnection',
+			(conn: SystemConnection) => {
+				EditConnectionPanel.render(context, conn, systemProvider);
+			},
+		),
 	);
 
 	vscode.window.registerTreeDataProvider(

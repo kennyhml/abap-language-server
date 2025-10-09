@@ -24,8 +24,6 @@
 	let landscapeSystems: LandscapeSystem[] = $state([]);
 	let systemData: SystemConnection = $state(DEFAULT_HTTP_SYSTEM);
 
-	$inspect(landscapeSystems, console.log);
-
 	async function onRefreshLandscape() {
 		landscapeSystems = await getAvailableConnections();
 	}

@@ -117,3 +117,11 @@ export type ConnectionPanelMessages =
 			{ connection: SystemConnection; test?: boolean },
 			{ success: boolean; message: string }
 	  >;
+
+export type EditConnectionMessages =
+	| WebviewMessage<
+			'doEdit',
+			{ connection: SystemConnection; test?: boolean },
+			{ success: boolean; message: string }
+	  >
+	| WebviewMessage<'initialize', { connection: SystemConnection }, void>;

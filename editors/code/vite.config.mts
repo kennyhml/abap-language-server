@@ -32,6 +32,7 @@ export default defineConfig({
 		rollupOptions: {
 			input: {
 				addConnection: resolve(__dirname, 'webviews/AddConnection.html'),
+				editConnection: resolve(__dirname, 'webviews/EditConnection.html'),
 			},
 		},
 		emptyOutDir: true,
