@@ -1,96 +1,16 @@
-import {
-	type WebviewMessage,
-	type MessageChannel,
-	generateInteractionId,
-	type ConnectionPanelMessages,
-} from 'core';
+import { MessageChannel, type ConnectionPanelMessages } from 'core';
 import {
 	SystemConnectionProvider,
 	type LandscapeSystem,
 } from '../systemConnection';
 import type { Disposable, ExtensionContext, WebviewPanel } from 'vscode';
 import * as vscode from 'vscode';
-import { type Webview } from 'vscode';
 import { ViewColumn, window } from 'vscode';
-
-class PannelMessageChannel<T extends WebviewMessage<string, any, any>>
-	implements MessageChannel<T>
-{
-	private messageHandlers: {
-		[K in T['kind']]: (
-			msg: Extract<T, { kind: K }>['data'],
-		) => Promise<Extract<T, { kind: K }>['response']>;
-	};
-
-	private recvListenerDisposable?: Disposable;
-
-	constructor(private webview: Webview) {
-		this.messageHandlers = {} as any;
-	}
-
-	send<const K extends T['kind']>(
-		kind: K,
-		data: Extract<T, { kind: K }>['data'],
-	): Promise<Extract<T, { kind: K }>['response']> {
-		const interactionId = generateInteractionId();
-		this.webview.postMessage({
-			kind,
-			data: JSON.stringify(data),
-			interactionId,
-		});
-
-		return new Promise((resolve, reject) => {
-			const handleMessage = (msg) => {
-				if (msg.interactionId !== interactionId) {
-					return;
-				}
-				disposable.dispose();
-				resolve(msg);
-			};
-			let disposable = this.webview.onDidReceiveMessage(handleMessage);
-
-			setTimeout(() => {
-				disposable.dispose();
-				reject(new Error('No response received from extension'));
-			}, 9999);
-		});
-	}
-
-	onDidReceive<const K extends T['kind']>(
-		kind: K,
-		callback: (
-			data: Extract<T, { kind: K }>['data'],
-		) => Promise<Extract<T, { kind: K }>['response']>,
-	): void {
-		// If not done already, register a listener for new messages to dispatch
-		// the callbacks to. We dont have to worry about this accidentally responding
-		// to what is already a response, since a response should not include a kind field.
-		if (!this.recvListenerDisposable) {
-			this.recvListenerDisposable = this.webview.onDidReceiveMessage((msg) => {
-				let callback = this.messageHandlers[msg.kind as T['kind']];
-				if (!callback) {
-					console.warn('No callback for ', msg.kind ?? msg);
-					return;
-				}
-				console.log(`Received Message: ${JSON.stringify(msg, null, 2)}`);
-				callback(JSON.parse(msg.data))
-					.then((response) => {
-						this.webview.postMessage({
-							data: response,
-							interactionId: msg.interactionId,
-						});
-					})
-					.catch(console.error);
-			});
-		}
-		this.messageHandlers[kind] = callback;
-	}
-}
 
 export class AddConnectionPanel {
 	private disposables: Disposable[] = [];
 	private panel: WebviewPanel;
-	private messageChannel: PannelMessageChannel<ConnectionPanelMessages>;
+	private messageChannel: MessageChannel<ConnectionPanelMessages>;
 	private static instance: AddConnectionPanel | undefined;
 
 	private constructor(
@@ -115,7 +35,15 @@ export class AddConnectionPanel {
 			inputName: 'addConnection',
 		});
 
-		this.messageChannel = new PannelMessageChannel(this.panel.webview);
+		this.messageChannel = new MessageChannel({
+			dispatch: (message) => this.panel.webview.postMessage(message),
+			listen: (listener) =>
+				this.panel.webview.onDidReceiveMessage(
+					listener,
+					null,
+					this.disposables,
+				),
+		});
 
 		this.messageChannel.onDidReceive('getLandscape', async (data) => {
 			console.log(`Landscape requested for ${data.protocol}`);

@@ -6,21 +6,25 @@
 		DEFAULT_HTTP_SYSTEM,
 		DEFAULT_RFC_SYSTEM,
 		type ConnectionPanelMessages,
+		MessageChannel,
 	} from 'extension';
 
 	import { onMount } from 'svelte';
 	import SystemForm from './lib/SystemForm.svelte';
 	import SystemLandscape from './lib/SystemLandscape.svelte';
-	import { WebviewMessageChannel } from './lib/channel';
 
 	let vscode = acquireVsCodeApi();
-	let messageChannel = new WebviewMessageChannel<ConnectionPanelMessages>(
-		vscode,
-	);
+	let messageChannel = new MessageChannel<ConnectionPanelMessages>({
+		dispatch: vscode.postMessage,
+		listen: (listener) =>
+			window.addEventListener('message', (event) => listener(event.data)),
+	});
 
 	let selectedProtocol: ConnectionProtocol = $state(ConnectionProtocol.Http);
 	let landscapeSystems: LandscapeSystem[] = $state([]);
 	let systemData: SystemConnection = $state(DEFAULT_HTTP_SYSTEM);
+
+	$inspect(landscapeSystems, console.log);
 
 	async function onRefreshLandscape() {
 		landscapeSystems = await getAvailableConnections();
