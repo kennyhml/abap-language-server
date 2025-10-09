@@ -53,10 +53,11 @@ export class AddConnectionPanel {
 		});
 
 		this.messageChannel.onDidReceive('connectionSubmit', async (data) => {
-			console.log(
-				`Received ${data.connection.name}, test: ${data.test ?? false}`,
-			);
-			return await this.connectionProvider.testConnection(data.connection);
+			if (data.test) {
+				return await this.connectionProvider.testConnection(data.connection);
+			} else {
+				return await this.connectionProvider.addConnection(data.connection);
+			}
 		});
 	}
 

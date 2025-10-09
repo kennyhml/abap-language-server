@@ -70,7 +70,7 @@
         "shortTitle": "Short"
       },
       {
-        "command": "abap.deleteSystem",
+        "command": "abap.deleteSystemConnection",
         "title": "Delete System",
         "shortTitle": "Short"
       }
@@ -78,7 +78,7 @@
     "menus": {
       "commandPalette": [
         {
-          "command": "abap.deleteSystem",
+          "command": "abap.deleteSystemConnection",
           "when": "false"
         }
       ],
@@ -99,7 +99,7 @@
           "group": "1_modification"
         },
         {
-          "command": "abap.deleteSystem",
+          "command": "abap.deleteSystemConnection",
           "when": "viewItem == disconnected",
           "group": "1_modification@1"
         }

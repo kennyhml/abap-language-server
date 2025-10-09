@@ -109,7 +109,9 @@
 		}
 		showMissingFields = false;
 
+		loading = true;
 		let result = await onSubmit(systemData);
+		loading = false;
 		console.log('Submission result: ', result);
 		if (result.success) {
 			successMessage = result.message;

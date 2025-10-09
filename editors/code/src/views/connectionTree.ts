@@ -1,25 +1,39 @@
-import * as vscode from 'vscode';
-import type { SystemConnection } from 'core';
+import { ConnectionProtocol, type SystemConnection } from 'core';
 import path from 'path';
 import type { SystemConnectionProvider } from 'adapters/connectionProvider';
+import {
+	EventEmitter,
+	type TreeDataProvider,
+	type Event,
+	type ExtensionContext,
+	TreeItem,
+	TreeItemCollapsibleState,
+} from 'vscode';
 
 export class ConnectionTreeProvider
-	implements vscode.TreeDataProvider<SystemConnection>
+	implements TreeDataProvider<SystemConnection>
 {
+	private _onDidChangeTreeData: EventEmitter<
+		SystemConnection | undefined | null | void
+	> = new EventEmitter<SystemConnection | undefined | null | void>();
+	readonly onDidChangeTreeData: Event<
+		SystemConnection | undefined | null | void
+	> = this._onDidChangeTreeData.event;
+
 	constructor(
-		private context: vscode.ExtensionContext,
+		private context: ExtensionContext,
 		private connectionProvider: SystemConnectionProvider,
-	) {}
+	) {
+		this.connectionProvider.onDidChangeSystems(() => {
+			this._onDidChangeTreeData.fire();
+		});
+	}
 
-	getTreeItem(element: SystemConnection): vscode.TreeItem {
-		const treeItem = new vscode.TreeItem(
-			element.name,
-			vscode.TreeItemCollapsibleState.None,
-		);
+	getTreeItem(element: SystemConnection): TreeItem {
+		const treeItem = new TreeItem(element.name, TreeItemCollapsibleState.None);
 
-		treeItem.label = element.name ?? '-';
+		treeItem.label = element.name.toUpperCase();
 		treeItem.tooltip = `Connection: ${element.name}`;
-		treeItem.description = element.description;
 		treeItem.contextValue = element.state ?? '';
 		treeItem.iconPath = path.join(
 			this.context.extensionPath,
@@ -27,7 +41,21 @@ export class ConnectionTreeProvider
 			'assets',
 			element.landscapeProviderUrl ? 'systemSynced.svg' : 'systemNoSync.svg',
 		);
+		treeItem.contextValue = element.state ?? '';
 
+		/// [Protocol - Client - language]
+		let descriptionString = '';
+		if (element.params.protocol === ConnectionProtocol.Rfc) {
+			descriptionString += '[RFC]: ';
+		} else {
+			if (element.params.ssl) {
+				descriptionString += '[HTTPS]: ';
+			} else {
+				descriptionString += '[HTTP]: ';
+			}
+		}
+		descriptionString += `${element.systemId} (${element.params.client}, '${element.params.language}')`;
+		treeItem.description = descriptionString.toUpperCase();
 		return treeItem;
 	}
 

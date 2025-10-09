@@ -184,7 +184,7 @@ export type LandscapeSystem = {
 	description: string;
 };
 
-export type ConnectionTestResult = {
+export type ConnectionResult = {
 	success: boolean;
 	message: string;
 };

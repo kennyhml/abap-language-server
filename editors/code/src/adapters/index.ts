@@ -3,5 +3,5 @@
  * vscode extension layer, i.e vscode independent features integrate
  * with the vscode api.
  */
-export * from './client';
+export * from './connectionClient';
 export * from './connectionProvider';
