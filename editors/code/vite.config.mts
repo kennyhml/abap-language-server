@@ -25,7 +25,7 @@ export default defineConfig({
 	],
 	resolve: {
 		alias: {
-			connections: resolve(__dirname, 'src/connections.ts'),
+			extension: resolve(__dirname, 'src/core/index.ts'),
 		},
 	},
 	build: {

@@ -1,17 +1,14 @@
 import * as vscode from 'vscode';
-import { AddConnectionPanel } from './views/addConnection';
-import { ConnectionTreeProvider } from './views/connectionProvider';
+import { AddConnectionPanel } from './panels/addConnection';
+import { SystemConnectionProvider } from 'systemConnection';
 
 export async function activate(context: vscode.ExtensionContext) {
+	let systemProvider = new SystemConnectionProvider(context.workspaceState);
+
 	context.subscriptions.push(
 		vscode.commands.registerCommand('abap.openAddConnectionScreen', () => {
-			AddConnectionPanel.render(context);
+			AddConnectionPanel.render(context, systemProvider);
 		}),
-	);
-
-	vscode.window.registerTreeDataProvider(
-		'systems',
-		new ConnectionTreeProvider(context),
 	);
 
 	console.log('Extension activated.');

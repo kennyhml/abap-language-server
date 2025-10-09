@@ -5,11 +5,10 @@
 	import SSOEnabledIcon from '../assets/ssoEnabled.svg';
 	import SSODisabledIcon from '../assets/ssoDisabled.svg';
 	import {
-		ConnectionProtocols,
 		isRfcConnection,
-		type ConnectionProtocol,
+		ConnectionProtocol,
 		type LandscapeSystem,
-	} from 'connections';
+	} from 'extension';
 
 	let {
 		systems = $bindable(),
@@ -45,7 +44,7 @@
 		let lowerFilter = filter.toLowerCase();
 		return conns.filter(
 			(conn) =>
-				conn.connection.kind === protocol &&
+				conn.params.protocol === protocol &&
 				(conn.systemId.toLowerCase().includes(lowerFilter) ||
 					conn.name.toLowerCase().includes(lowerFilter)),
 		);
@@ -90,7 +89,7 @@
 				<th>SID</th>
 				<th>Name</th>
 				<th>Description</th>
-				{#if protocol === ConnectionProtocols.RFC}
+				{#if protocol === ConnectionProtocol.Rfc}
 					<th>SNC</th>
 					<th>SSO</th>
 					<th>Router</th>
@@ -109,21 +108,21 @@
 					<td>{system.systemId}</td>
 					<td>{system.name}</td>
 					<td>{system.description}</td>
-					{#if isRfcConnection(system.connection)}
-						{#if system.connection.params.sncEnabled}
+					{#if isRfcConnection(system.params)}
+						{#if system.params.sncEnabled}
 							<td class="icon"><img src={SecureIcon} alt="Secure" /></td>
 						{:else}
 							<td class="icon"><img src={InsecureIcon} alt="Insecure" /></td>
 						{/if}
-						{#if system.connection.params.ssoEnabled}
+						{#if system.params.ssoEnabled}
 							<td class="icon"><img src={SSOEnabledIcon} alt="Secure" /></td>
 						{:else}
 							<td class="icon"><img src={SSODisabledIcon} alt="Insecure" /></td>
 						{/if}
-						<td>{system.connection.params.sapRouterString}</td>
+						<td>{system.params.sapRouterString}</td>
 					{:else}
-						<td>{system.connection.params.hostname}</td>
-						<td>{system.connection.params.port}</td>
+						<td>{system.params.hostname}</td>
+						<td>{system.params.port}</td>
 					{/if}
 				</tr>
 			{/each}

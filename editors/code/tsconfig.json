@@ -24,6 +24,9 @@
 		"paths": {
 			"*": [
 				"./src/*"
+			],
+			"extension": [
+				"./src/core/index.ts"
 			]
 		},
 	},

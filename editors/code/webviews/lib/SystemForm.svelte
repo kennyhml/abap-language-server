@@ -5,20 +5,24 @@
 	import ErrorIcon from '../assets/error.svg';
 	import LoadingIcon from '../assets/loading.svg';
 	import SystemAddedIcon from '../assets/systemAdded.svg';
-	import * as connection from 'connections';
 	import {
-		type System,
-		type SubmissionResult,
-		ConnectionTypes,
+		type SystemConnection,
+		ConnectionType,
 		SecurityLevel,
 		isRfcConnection,
-	} from 'connections';
+		isGroupSelection,
+		isApplicationServer,
+	} from 'extension';
 	import VSCheckBox from './common/VSCheckBox.svelte';
 
 	type Props = {
-		systemData: System;
-		onSubmit: (system: System) => Promise<SubmissionResult>;
-		onTest: (system: System) => Promise<SubmissionResult>;
+		systemData: SystemConnection;
+		onSubmit: (
+			system: SystemConnection,
+		) => Promise<{ success: boolean; message: string }>;
+		onTest: (
+			system: SystemConnection,
+		) => Promise<{ success: boolean; message: string }>;
 	};
 
 	let { systemData = $bindable(), onSubmit, onTest }: Props = $props();
@@ -30,11 +34,11 @@
 
 	const connectionTypes = [
 		{
-			value: ConnectionTypes.GroupSelection,
+			value: ConnectionType.GroupSelection,
 			name: 'Group Selection',
 		},
 		{
-			value: ConnectionTypes.CustomApplicationServer,
+			value: ConnectionType.CustomApplicationServer,
 			name: 'Custom Application Server',
 		},
 	];
@@ -63,33 +67,29 @@
 	 * the difference between connection types.
 	 * @param data
 	 */
-	function allRequiredFieldsFilled(system: System) {
+	function allRequiredFieldsFilled(system: SystemConnection) {
 		if (
 			system.systemId.length === 0 ||
-			system.defaultClient.length === 0 ||
-			system.defaultLanguage.length === 0 ||
-			system.displayName.length === 0
+			system.params.client.length === 0 ||
+			system.params.language.length === 0 ||
+			system.name.length === 0
 		) {
 			return false;
 		}
 
-		if (connection.isRfcConnection(system.connection)) {
-			let params = system.connection.params;
+		if (isRfcConnection(system.params)) {
+			let params = system.params;
 			if (!system.systemId || (params.sncEnabled && !params.sncName)) {
 				return false;
 			}
 			// Different props required based on the connection type
-			if (connection.isApplicationServer(params)) {
+			if (isApplicationServer(params)) {
 				return params.applicationServer && params.instanceNumber;
 			} else {
 				return params.group && params.messageServer;
 			}
 		} else {
-			return (
-				system.systemId &&
-				system.connection.params.hostname &&
-				system.connection.params.port
-			);
+			return system.systemId && system.params.hostname && system.params.port;
 		}
 	}
 
@@ -151,22 +151,22 @@
 					bind:showRequired={showMissingFields}
 				/>
 			</div>
-			{#if isRfcConnection(systemData.connection)}
+			{#if isRfcConnection(systemData.params)}
 				<div class="input-row">
 					<label class="label" for="">Connection Type</label>
 					<Dropdown
-						bind:selectedValue={systemData.connection.params.connectionType}
+						bind:selectedValue={systemData.params.connectionType}
 						options={connectionTypes}
 						style="flex-grow: 1"
 					></Dropdown>
 				</div>
 
-				{#if connection.isGroupSelection(systemData.connection.params)}
+				{#if isGroupSelection(systemData.params)}
 					<div class="input-row">
 						<label class="label" for="">Message Server*</label>
 						<TextInput
 							style="flex-grow: 1"
-							bind:value={systemData.connection.params.messageServer}
+							bind:value={systemData.params.messageServer}
 							bind:showRequired={showMissingFields}
 						/>
 					</div>
@@ -174,14 +174,14 @@
 						<label class="label" for="">Group*</label>
 						<TextInput
 							style="flex-grow: 1"
-							bind:value={systemData.connection.params.group}
+							bind:value={systemData.params.group}
 						/>
 					</div>
 					<div class="input-row">
 						<label class="label" for="">Message Server Port</label>
 						<TextInput
 							style="flex-grow: 1"
-							bind:value={systemData.connection.params.messageServerPort}
+							bind:value={systemData.params.messageServerPort}
 						/>
 					</div>
 				{:else}
@@ -189,7 +189,7 @@
 						<label class="label" for="">Application Server*</label>
 						<TextInput
 							style="flex-grow: 1"
-							bind:value={systemData.connection.params.applicationServer}
+							bind:value={systemData.params.applicationServer}
 							bind:showRequired={showMissingFields}
 						/>
 					</div>
@@ -197,7 +197,7 @@
 						<label class="label" for="">Instance Number*</label>
 						<TextInput
 							style="flex-grow: 1"
-							bind:value={systemData.connection.params.instanceNumber}
+							bind:value={systemData.params.instanceNumber}
 							bind:showRequired={showMissingFields}
 						/>
 					</div>
@@ -205,14 +205,14 @@
 						<label class="label" for="">RFC Gateway Server</label>
 						<TextInput
 							style="flex-grow: 1"
-							bind:value={systemData.connection.params.rfcGatewayServer}
+							bind:value={systemData.params.rfcGatewayServer}
 						/>
 					</div>
 					<div class="input-row">
 						<label class="label" for="">RFC Gateway Server Port</label>
 						<TextInput
 							style="flex-grow: 1"
-							bind:value={systemData.connection.params.rfcGatewayServerPort}
+							bind:value={systemData.params.rfcGatewayServerPort}
 						/>
 					</div>
 				{/if}
@@ -220,7 +220,7 @@
 					<label class="label" for="">SAProuter Connection String</label>
 					<TextInput
 						style="flex-grow: 1"
-						bind:value={systemData.connection.params.sapRouterString}
+						bind:value={systemData.params.sapRouterString}
 					/>
 				</div>
 			{:else}
@@ -228,7 +228,7 @@
 					<label class="label" for="">Hostname*</label>
 					<TextInput
 						style="flex-grow: 1"
-						bind:value={systemData.connection.params.hostname}
+						bind:value={systemData.params.hostname}
 						bind:showRequired={showMissingFields}
 					/>
 				</div>
@@ -236,7 +236,7 @@
 					<label class="label" for="">Port*</label>
 					<TextInput
 						style="flex-grow: 1"
-						bind:value={systemData.connection.params.port}
+						bind:value={systemData.params.port}
 						bind:showRequired={showMissingFields}
 						type="number"
 					/>
@@ -249,19 +249,18 @@
 		<header>
 			<h3 class="config-header">Secure Connection Settings</h3>
 		</header>
-		{#if isRfcConnection(systemData.connection)}
+		{#if isRfcConnection(systemData.params)}
 			<div class="input-group">
 				<div class="input-row">
 					<label class="label" for="">SNC Enabled</label>
-					<VSCheckBox bind:value={systemData.connection.params.sncEnabled}
-					></VSCheckBox>
+					<VSCheckBox bind:value={systemData.params.sncEnabled}></VSCheckBox>
 				</div>
 
-				{#if systemData.connection.params.sncEnabled}
+				{#if systemData.params.sncEnabled}
 					<div class="input-row">
 						<label class="label" for="">SNC Security Level</label>
 						<Dropdown
-							bind:selectedValue={systemData.connection.params.sncLevel}
+							bind:selectedValue={systemData.params.sncLevel}
 							options={sncLevels}
 							style="flex-grow: 1"
 						></Dropdown>
@@ -271,15 +270,14 @@
 						<label class="label" for="">SNC Authentication Name*</label>
 						<TextInput
 							style="flex-grow: 1"
-							bind:value={systemData.connection.params.sncName}
+							bind:value={systemData.params.sncName}
 							bind:showRequired={showMissingFields}
 						/>
 					</div>
 
 					<div class="input-row">
 						<label class="label" for="">Single-Sign-On Enabled</label>
-						<VSCheckBox bind:value={systemData.connection.params.ssoEnabled}
-						></VSCheckBox>
+						<VSCheckBox bind:value={systemData.params.ssoEnabled}></VSCheckBox>
 					</div>
 				{/if}
 			</div>
@@ -287,10 +285,9 @@
 			<div class="input-group">
 				<div class="input-row">
 					<label class="label" for="">SSL/TLS Encrypted (HTTPS)</label>
-					<VSCheckBox bind:value={systemData.connection.params.ssl}
-					></VSCheckBox>
+					<VSCheckBox bind:value={systemData.params.ssl}></VSCheckBox>
 
-					{#if !systemData.connection.params.ssl}
+					{#if !systemData.params.ssl}
 						<div
 							style="display: flex; align-items: center; gap: 8px; margin-left: 5px"
 						>
@@ -300,13 +297,12 @@
 					{/if}
 				</div>
 
-				{#if systemData.connection.params.ssl}
+				{#if systemData.params.ssl}
 					<div class="input-row">
 						<label class="label" for="">Accept Invalid Certificates</label>
-						<VSCheckBox
-							bind:value={systemData.connection.params.acceptInvalidCerts}
+						<VSCheckBox bind:value={systemData.params.acceptInvalidCerts}
 						></VSCheckBox>
-						{#if systemData.connection.params.acceptInvalidCerts}
+						{#if systemData.params.acceptInvalidCerts}
 							<div
 								style="display: flex; align-items: center; gap: 8px; margin-left: 5px"
 							>
@@ -320,10 +316,9 @@
 
 					<div class="input-row">
 						<label class="label" for="">Accept Invalid Hostnames</label>
-						<VSCheckBox
-							bind:value={systemData.connection.params.acceptInvalidHostname}
+						<VSCheckBox bind:value={systemData.params.acceptInvalidHostname}
 						></VSCheckBox>
-						{#if systemData.connection.params.acceptInvalidHostname}
+						{#if systemData.params.acceptInvalidHostname}
 							<div
 								style="display: flex; align-items: center; gap: 8px; margin-left: 5px"
 							>
@@ -339,7 +334,7 @@
 						<label class="label" for="">Custom Certificate</label>
 						<TextInput
 							style="flex-grow: 1"
-							bind:value={systemData.connection.params.customCertificate}
+							bind:value={systemData.params.customCertificate}
 						/>
 					</div>
 				{/if}
@@ -357,7 +352,7 @@
 				<TextInput
 					style="flex-grow: 1"
 					bind:showRequired={showMissingFields}
-					bind:value={systemData.displayName}
+					bind:value={systemData.name}
 				/>
 			</div>
 
@@ -365,7 +360,7 @@
 				<label class="label" for="">Default Client Number*</label>
 				<TextInput
 					style="flex-grow: 1"
-					bind:value={systemData.defaultClient}
+					bind:value={systemData.params.client}
 					bind:showRequired={showMissingFields}
 				/>
 			</div>
@@ -374,7 +369,7 @@
 				<label class="label" for="">Default Client Language*</label>
 				<TextInput
 					style="flex-grow: 1"
-					bind:value={systemData.defaultLanguage}
+					bind:value={systemData.params.language}
 					bind:showRequired={showMissingFields}
 				/>
 			</div>

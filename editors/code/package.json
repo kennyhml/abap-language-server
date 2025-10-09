@@ -68,9 +68,20 @@
         "command": "abap.editSystemConnection",
         "title": "Edit Connection",
         "shortTitle": "Short"
+      },
+      {
+        "command": "abap.deleteSystem",
+        "title": "Delete System",
+        "shortTitle": "Short"
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "abap.deleteSystem",
+          "when": "false"
+        }
+      ],
       "view/item/context": [
         {
           "command": "abap.connectToSystem",
@@ -86,6 +97,11 @@
           "command": "abap.editSystemConnection",
           "when": "viewItem == disconnected",
           "group": "1_modification"
+        },
+        {
+          "command": "abap.deleteSystem",
+          "when": "viewItem == disconnected",
+          "group": "1_modification@1"
         }
       ]
     },

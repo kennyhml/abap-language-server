@@ -1,112 +1,57 @@
 <script lang="ts">
 	import {
-		type System,
+		type SystemConnection,
 		type LandscapeSystem,
-		type SubmissionResult,
-		ConnectionProtocols,
-		type ConnectionProtocol,
+		ConnectionProtocol,
 		DEFAULT_HTTP_SYSTEM,
 		DEFAULT_RFC_SYSTEM,
-	} from 'connections';
+		type ConnectionPanelMessages,
+	} from 'extension';
 
 	import { onMount } from 'svelte';
 	import SystemForm from './lib/SystemForm.svelte';
 	import SystemLandscape from './lib/SystemLandscape.svelte';
+	import { WebviewMessageChannel } from './lib/channel';
 
 	let vscode = acquireVsCodeApi();
+	let messageChannel = new WebviewMessageChannel<ConnectionPanelMessages>(
+		vscode,
+	);
 
-	let selectedProtocol: ConnectionProtocol = $state(ConnectionProtocols.HTTP);
+	let selectedProtocol: ConnectionProtocol = $state(ConnectionProtocol.Http);
 	let landscapeSystems: LandscapeSystem[] = $state([]);
-	let systemData: System = $state(DEFAULT_HTTP_SYSTEM);
+	let systemData: SystemConnection = $state(DEFAULT_HTTP_SYSTEM);
 
 	async function onRefreshLandscape() {
 		landscapeSystems = await getAvailableConnections();
 	}
 
 	function getAvailableConnections(): Promise<LandscapeSystem[]> {
-		let interactionId = Math.random().toString(36).substring(2);
-		vscode.postMessage({
-			type: 'getConnections',
-			interactionId,
-		});
-
-		return new Promise((resolve, reject) => {
-			const handleMessage = (event: MessageEvent<any>) => {
-				if (event.data?.interactionId !== interactionId) {
-					return;
-				}
-				window.removeEventListener('message', handleMessage);
-				resolve(event.data?.data as LandscapeSystem[]);
-			};
-			window.addEventListener('message', handleMessage);
-
-			setTimeout(() => {
-				window.removeEventListener('message', handleMessage);
-				reject(new Error('No response received from extension'));
-			}, 5000);
-		});
+		return messageChannel.send('getLandscape', { protocol: selectedProtocol });
 	}
 
-	function onConnectionSubmitted(system: System): Promise<SubmissionResult> {
-		let interactionId = Math.random().toString(36).substring(2);
-		vscode.postMessage({
-			type: 'onSubmit',
-			connection: JSON.stringify(system),
-			interactionId,
-		});
-
-		return new Promise((resolve, reject) => {
-			const handleMessage = (event: MessageEvent<any>) => {
-				if (event.data?.interactionId !== interactionId) {
-					return;
-				}
-				window.removeEventListener('message', handleMessage);
-				resolve(event.data as SubmissionResult);
-			};
-			window.addEventListener('message', handleMessage);
-
-			setTimeout(() => {
-				window.removeEventListener('message', handleMessage);
-				reject(new Error('No response received from extension'));
-			}, 5000);
-		});
+	function onConnectionSubmitted(
+		connection: SystemConnection,
+	): Promise<{ success: boolean; message: string }> {
+		return messageChannel.send('connectionSubmit', { connection });
 	}
 
 	function onConnectionTestRequested(
-		system: System,
-	): Promise<SubmissionResult> {
-		let interactionId = Math.random().toString(36).substring(2);
-		vscode.postMessage({
-			type: 'onTest',
-			connection: JSON.stringify(system),
-			interactionId,
-		});
-
-		return new Promise((resolve, reject) => {
-			const handleMessage = (event: MessageEvent<any>) => {
-				if (event.data?.interactionId !== interactionId) {
-					return;
-				}
-				window.removeEventListener('message', handleMessage);
-				resolve(event.data as SubmissionResult);
-			};
-			window.addEventListener('message', handleMessage);
-
-			setTimeout(() => {
-				window.removeEventListener('message', handleMessage);
-				reject(new Error('No response received from extension'));
-			}, 10_000);
-		});
+		connection: SystemConnection,
+	): Promise<{ success: boolean; message: string }> {
+		return messageChannel.send('connectionSubmit', { connection, test: true });
 	}
 
 	function onSelectionChange(system: LandscapeSystem) {
 		systemData = {
-			connection: system.connection,
+			name: system.name,
 			systemId: system.systemId,
-			defaultClient: '001',
-			defaultLanguage: 'en',
 			description: system.description,
-			displayName: system.name,
+			params: {
+				...system.params,
+				client: '001',
+				language: 'en',
+			},
 			landscapeProviderUrl: '/land/scape/provider/',
 		};
 	}
@@ -116,7 +61,7 @@
 			return;
 		}
 		selectedProtocol = protocol;
-		if (selectedProtocol === ConnectionProtocols.HTTP) {
+		if (selectedProtocol === ConnectionProtocol.Http) {
 			systemData = DEFAULT_HTTP_SYSTEM;
 		} else {
 			systemData = DEFAULT_RFC_SYSTEM;
@@ -133,13 +78,13 @@
 <main>
 	<section class="protocolSwitch">
 		<button
-			class:active={selectedProtocol === ConnectionProtocols.HTTP}
-			onclick={() => onProtocolChange(ConnectionProtocols.HTTP)}>HTTP</button
+			class:active={selectedProtocol === ConnectionProtocol.Http}
+			onclick={() => onProtocolChange(ConnectionProtocol.Http)}>HTTP</button
 		>
 		<!--RFC not supported for now-->
 		<button
-			class:active={selectedProtocol === ConnectionProtocols.RFC}
-			onclick={() => onProtocolChange(ConnectionProtocols.RFC)}>RFC</button
+			class:active={selectedProtocol === ConnectionProtocol.Rfc}
+			onclick={() => onProtocolChange(ConnectionProtocol.Rfc)}>RFC</button
 		>
 	</section>
 
