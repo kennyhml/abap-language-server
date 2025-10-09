@@ -1,9 +1,7 @@
 import * as vscode from 'vscode';
-import type {
-	SystemConnection,
-	SystemConnectionProvider,
-} from '../systemConnection';
+import type { SystemConnection } from 'core';
 import path from 'path';
+import type { SystemConnectionProvider } from 'adapters/connectionProvider';
 
 export class ConnectionTreeProvider
 	implements vscode.TreeDataProvider<SystemConnection>

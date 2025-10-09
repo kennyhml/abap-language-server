@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { AddConnectionPanel } from './panels/addConnection';
-import { SystemConnectionProvider } from 'systemConnection';
+import { SystemConnectionProvider } from 'adapters/connectionProvider';
 
 export async function activate(context: vscode.ExtensionContext) {
 	let systemProvider = new SystemConnectionProvider(context.workspaceState);

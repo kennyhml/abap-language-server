@@ -3,7 +3,7 @@ import {
 	isHttpConnection,
 	isRfcConnection,
 	type SystemConnection,
-} from './systemConnection';
+} from '../core';
 import {
 	CloseAction,
 	ErrorAction,

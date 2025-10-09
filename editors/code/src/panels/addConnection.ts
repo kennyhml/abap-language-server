@@ -1,8 +1,9 @@
-import { MessageChannel, type ConnectionPanelMessages } from 'core';
+import type { SystemConnectionProvider } from 'adapters/connectionProvider';
 import {
-	SystemConnectionProvider,
+	MessageChannel,
+	type ConnectionPanelMessages,
 	type LandscapeSystem,
-} from '../systemConnection';
+} from 'core';
 import type { Disposable, ExtensionContext, WebviewPanel } from 'vscode';
 import * as vscode from 'vscode';
 import { ViewColumn, window } from 'vscode';
