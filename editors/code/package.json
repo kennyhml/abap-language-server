@@ -46,7 +46,19 @@
     "commands": [
       {
         "command": "abap.openAddConnectionScreen",
-        "title": "Add new System Connection"
+        "title": "Add new System Connection",
+        "icon": {
+          "dark": "webviews/assets/addConnection.svg",
+          "light": "webviews/assets/addConnection.svg"
+        }
+      },
+      {
+        "command": "abap.refreshConnections",
+        "title": "Refresh Landscape Connections",
+        "icon": {
+          "dark": "webviews/assets/refresh.svg",
+          "light": "webviews/assets/refresh.svg"
+        }
       },
       {
         "command": "abap.connectToSystem",
@@ -65,6 +77,14 @@
         }
       },
       {
+        "command": "abap.disconnectAllSystems",
+        "title": "Disconnect from all system",
+        "icon": {
+          "dark": "webviews/assets/disconnectAll.svg",
+          "light": "webviews/assets/disconnectAll.svg"
+        }
+      },
+      {
         "command": "abap.editSystemConnection",
         "title": "Edit Connection",
         "shortTitle": "Short"
@@ -80,6 +100,23 @@
         {
           "command": "abap.deleteSystemConnection",
           "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "abap.refreshConnections",
+          "when": "view == systems",
+          "group": "navigation@1"
+        },
+        {
+          "command": "abap.openAddConnectionScreen",
+          "when": "view == systems",
+          "group": "navigation@2"
+        },
+        {
+          "command": "abap.disconnectAllSystems",
+          "when": "view == systems",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [

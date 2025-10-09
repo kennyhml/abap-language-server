@@ -4,6 +4,7 @@ import {
 	type ConnectionPanelMessages,
 	type LandscapeSystem,
 } from 'core';
+import path from 'path';
 import type { Disposable, ExtensionContext, WebviewPanel } from 'vscode';
 import * as vscode from 'vscode';
 import { ViewColumn, window } from 'vscode';
@@ -28,6 +29,10 @@ export class AddConnectionPanel {
 				retainContextWhenHidden: true,
 			},
 		);
+		const iconPath = vscode.Uri.file(
+			path.join(context.extensionPath, 'webviews/assets/', 'addConnection.svg'),
+		);
+		this.panel.iconPath = iconPath;
 		this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 		this.panel.webview.html = __getWebviewHtml__({
 			serverUrl: `${process.env.VITE_DEV_SERVER_URL}webviews/addConnection.html`,
