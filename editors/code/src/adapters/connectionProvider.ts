@@ -105,7 +105,18 @@ export class SystemConnectionProvider {
 	public async testConnection(
 		connection: SystemConnection,
 	): Promise<ConnectionResult> {
-		return SystemConnectionClient.testConnect(connection);
+		try {
+			SystemConnectionClient.connect(connection);
+			return {
+				success: true,
+				message: 'Conntected successfully.',
+			};
+		} catch (err: any) {
+			return {
+				success: false,
+				message: err?.message ?? 'Unknown Error',
+			};
+		}
 	}
 
 	public async updateConnection(
