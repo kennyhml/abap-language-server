@@ -1,64 +1,40 @@
-import { LanguageClient } from 'vscode-languageclient/node';
+import { LanguageClient, type StreamInfo } from 'vscode-languageclient/node';
 import {
-	isHttpConnection,
+	ConnectionState,
 	isRfcConnection,
+	type ConnectionResult,
 	type SystemConnection,
 } from '../core';
-import {
-	CloseAction,
-	ErrorAction,
-	type CloseHandlerResult,
-	type ErrorHandler,
-	type ErrorHandlerResult,
-	type LanguageClientOptions,
-	type ServerOptions,
-	TransportKind,
-} from 'vscode-languageclient/node';
+import { type LanguageClientOptions } from 'vscode-languageclient/node';
 import * as vscode from 'vscode';
+import { EventEmitter } from 'vscode';
+import { establishServerConnection } from 'core/client';
 
-const silentShutdown: ErrorHandler = {
-	error(error: Error, message: any, count: number): ErrorHandlerResult {
-		console.error('Language server error:', error, message, `Attempt ${count}`);
-		return { handled: true, action: ErrorAction.Continue };
-	},
+// const silentShutdown: ErrorHandler = {
+// 	error(error: Error, message: any, count: number): ErrorHandlerResult {
+// 		console.error('Language server error:', error, message, `Attempt ${count}`);
+// 		return { handled: true, action: ErrorAction.Continue };
+// 	},
 
-	closed(): CloseHandlerResult {
-		console.warn('Language server connection closed.');
-		return { handled: true, action: CloseAction.DoNotRestart };
-	},
-};
+// 	closed(): CloseHandlerResult {
+// 		console.warn('Language server connection closed.');
+// 		return { handled: true, action: CloseAction.DoNotRestart };
+// 	},
+// };
 
 async function createClient(
 	connection: SystemConnection,
-	options?: {
-		silent?: boolean;
-	},
 ): Promise<LanguageClient> {
 	let clientOptions: LanguageClientOptions;
 
 	let ch = vscode.window.createOutputChannel('ABAP Language Server', 'abap');
+	clientOptions = {
+		outputChannel: ch,
+	};
 
-	if (isHttpConnection(connection.params)) {
-		clientOptions = {
-			initializationOptions: {
-				systemId: connection.systemId,
-				...connection.params,
-			},
-			outputChannel: ch,
-		};
-	} else {
-		throw Error('not supported');
-	}
-
-	if (options?.silent) {
-		clientOptions.errorHandler = silentShutdown;
-	}
-
-	const serverOptions: ServerOptions = {
-		command:
-			process.env['__ABAP_LSP_SERVER_DEBUG'] ??
-			'C:/dev/abap-lsp/target/debug/abap-lsp.exe',
-		transport: TransportKind.stdio,
+	let serverOptions = async (): Promise<StreamInfo> => {
+		let socket = await establishServerConnection();
+		return { writer: socket, reader: socket, detached: true };
 	};
 
 	return new LanguageClient(
@@ -68,18 +44,77 @@ async function createClient(
 		clientOptions,
 	);
 }
+
 /**
  * Provides functionality to interact with a connected sap system.
  */
-export class SystemConnectionClient extends LanguageClient {
+export class SystemConnectionClient {
+	private _onDidStateChange = new EventEmitter<ConnectionState>();
+	public readonly onDidStateChange = this._onDidStateChange.event;
+
+	private constructor(
+		private languageClient: LanguageClient,
+		private connection: SystemConnection,
+	) {}
+
+	public getLanguageClient(): LanguageClient {
+		return this.languageClient;
+	}
+
+	public getConnection(): SystemConnection {
+		return this.connection;
+	}
+
+	/**
+	 * Checks whether the given connection is valid to connect to the backend with.
+	 *
+	 * As this is for testing purposes, language client error popups are suppressed
+	 * and no workspace folder is actually created, the client is cleaned up immediatly
+	 * and only the result of the operation is returned to the caller.
+	 *
+	 * @param connection The data of the connection to test.
+	 */
+	public static async testConnect(
+		connection: SystemConnection,
+	): Promise<ConnectionResult> {
+		if (isRfcConnection(connection.params)) {
+			throw Error('Rfc connections are not supported');
+		}
+
+		let client = await createClient(connection);
+		try {
+			await client.start();
+			await client.sendRequest('connection/initialize', {
+				...connection.params,
+			});
+			return {
+				success: true,
+				message: 'Connection is valid, initialization successful.',
+			};
+		} catch (err: any) {
+			return {
+				success: false,
+				message: err.message ?? 'Unknown error',
+			};
+		} finally {
+			client
+				.stop()
+				.then(() => {
+					console.log('Server has been stopped.');
+				})
+				.catch((err) => {
+					console.error('Could not stop the server: ', err);
+				});
+		}
+	}
+
 	public static async connect(
 		connection: SystemConnection,
 	): Promise<SystemConnectionClient> {
 		if (isRfcConnection(connection.params)) {
 			throw Error('Rfc connections are not supported');
 		}
-		let client = await createClient(connection, { silent: true });
-
+		let client = await createClient(connection);
 		try {
 			await client.start();
 			await client.sendRequest('connection/initialize', {
@@ -96,6 +131,6 @@ export class SystemConnectionClient extends LanguageClient {
 				});
 			throw err;
 		}
-		return client;
+		return new SystemConnectionClient(client, connection);
 	}
 }

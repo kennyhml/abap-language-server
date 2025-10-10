@@ -19,12 +19,14 @@ export class SystemConnectionProvider {
 		this._onDidChangeSystems.event;
 
 	public readonly connections: SystemConnection[];
+	private clients: Map<string, SystemConnectionClient>;
 
 	constructor(private workspaceState: Memento) {
 		this.connections = this.loadSystemConnections();
 		this.connections.forEach(
 			(system) => (system.state = ConnectionState.disconnected),
 		);
+		this.clients = new Map();
 	}
 
 	/**
@@ -46,15 +48,21 @@ export class SystemConnectionProvider {
 	 * @returns A {@link any} to perform operations on the connection or `undefined`
 	 */
 	public getConnectionClient(
-		_connectionName: string,
+		connectionName: string,
 	): SystemConnectionClient | undefined {
-		return;
+		return this.clients.get(connectionName);
 	}
 
 	public async createConnectionClient(
 		connection: SystemConnection,
 	): Promise<SystemConnectionClient> {
-		return SystemConnectionClient.connect(connection);
+		let client = await SystemConnectionClient.connect(connection);
+		this.clients.set(connection.name, client);
+		const index = this.connections.findIndex((c) => c.name === connection.name);
+		if (index !== -1) {
+			this.connections[index].state = ConnectionState.connected;
+		}
+		return client;
 	}
 
 	/**
@@ -97,19 +105,7 @@ export class SystemConnectionProvider {
 	public async testConnection(
 		connection: SystemConnection,
 	): Promise<ConnectionResult> {
-		try {
-			let client = await this.createConnectionClient(connection);
-			await client.stop();
-			return {
-				success: true,
-				message: 'Connection is valid.',
-			};
-		} catch (err: any) {
-			return {
-				success: false,
-				message: err.message ?? 'Unknown error',
-			};
-		}
+		return SystemConnectionClient.testConnect(connection);
 	}
 
 	public async updateConnection(

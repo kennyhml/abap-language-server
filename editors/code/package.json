@@ -10,7 +10,9 @@
     "Other"
   ],
   "main": "./dist/extension/index.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "configuration": {
       "type": "object",

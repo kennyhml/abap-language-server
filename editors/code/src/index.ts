@@ -4,9 +4,26 @@ import { SystemConnectionProvider } from 'adapters/connectionProvider';
 import { ConnectionTreeProvider } from 'views/connectionTree';
 import type { SystemConnection } from 'core';
 import { EditConnectionPanel } from 'panels/editConnection';
+import { VirtualFilesystem } from 'adapters/fileSystemProvider';
 
 export async function activate(context: vscode.ExtensionContext) {
+	const workspaceUri = vscode.Uri.parse('adt:/');
+	const workspaceFolders = vscode.workspace.workspaceFolders || [];
+	if (!workspaceFolders.some((folder) => folder.uri.scheme === 'adt')) {
+		vscode.workspace.updateWorkspaceFolders(0, 0, {
+			uri: workspaceUri,
+			name: 'ABAP',
+		});
+	}
+
 	let systemProvider = new SystemConnectionProvider(context.workspaceState);
+
+	const vfs = new VirtualFilesystem(systemProvider);
+	context.subscriptions.push(
+		vscode.workspace.registerFileSystemProvider('adt', vfs, {
+			isCaseSensitive: true,
+		}),
+	);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('abap.openAddConnectionScreen', () => {
@@ -19,6 +36,18 @@ export async function activate(context: vscode.ExtensionContext) {
 			'abap.editSystemConnection',
 			(conn: SystemConnection) => {
 				EditConnectionPanel.render(context, conn, systemProvider);
+			},
+		),
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			'abap.connectToSystem',
+			async (conn: SystemConnection) => {
+				await systemProvider.createConnectionClient(conn);
+				vscode.window.showInformationMessage(
+					`Connecting to ${conn.systemId}...`,
+				);
 			},
 		),
 	);
@@ -40,4 +69,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log('Extension activated.');
 }
 
-export function deactivate() {}
+export function deactivate() {
+	console.log('Deactivate.');
+}

@@ -12,6 +12,7 @@ tower-lsp.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tracing-subscriber = "0.3"
 
 adt-query.workspace = true
 reqwest.workspace = true

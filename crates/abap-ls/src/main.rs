@@ -4,6 +4,7 @@ use adt_query::error::{DispatchError, OperationError};
 use reqwest::Certificate;
 use serde::{Deserialize, Serialize};
 use std::error::Error as _;
+use tokio::net::TcpListener;
 use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
@@ -136,11 +137,18 @@ impl Backend {
 
 #[tokio::main]
 async fn main() {
-    let stdin = tokio::io::stdin();
-    let stdout = tokio::io::stdout();
+    tracing_subscriber::fmt().init();
 
-    let (service, socket) = LspService::build(|client| Backend { client })
-        .custom_method("connection/initialize", Backend::initialize_connection)
-        .finish();
-    Server::new(stdin, stdout, socket).serve(service).await;
+    // We always need to be the entity that serves the connection, since we are
+    // looking to persist state throughout client reconnects
+    let listener = TcpListener::bind("127.0.0.1:9257").await.unwrap();
+
+    loop {
+        let (stream, _) = listener.accept().await.unwrap();
+        let (read, write) = tokio::io::split(stream);
+        let (service, socket) = LspService::build(|client| Backend { client })
+            .custom_method("connection/initialize", Backend::initialize_connection)
+            .finish();
+        Server::new(read, write, socket).serve(service).await;
+    }
 }
