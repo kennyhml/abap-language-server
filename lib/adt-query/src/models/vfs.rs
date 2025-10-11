@@ -121,6 +121,20 @@ pub struct Preselection<'a> {
     values: Vec<Cow<'a, str>>,
 }
 
+impl<'a> Preselection<'a> {
+    /// Quick builder for an inclusive preselection. If you need more complex
+    /// expressions (i.e. multiple include/excludes) use the [PreselectionBuilder]
+    pub fn new<T>(facet: Facet, value: T) -> Self
+    where
+        T: Into<Cow<'a, str>>,
+    {
+        Self {
+            facet,
+            values: vec![value.into()],
+        }
+    }
+}
+
 impl<'a> PreselectionBuilder<'a> {
     /// Excludes the provided value from the preselection
     pub fn exclude(&mut self, value: &'a str) -> &mut Self {
