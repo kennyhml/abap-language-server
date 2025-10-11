@@ -1,8 +1,3 @@
-/*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
-
 import { ConnectionState } from 'core';
 import * as path from 'path';
 import * as vscode from 'vscode';
@@ -52,17 +47,31 @@ export class VirtualFilesystem implements vscode.FileSystemProvider {
 
 	constructor(private connectionProvider: SystemConnectionProvider) {
 		connectionProvider.onDidChangeSystems(() => {
-			vscode.commands.executeCommand('vscode.refreshExplorer');
+			// vscode.commands
+			// 	.executeCommand('vscode.refreshExplorer')
+			// 	.then(undefined, (err) => {
+			// 		console.error(err);
+			// 	});
 		});
 	}
 
 	// --- manage file metadata
 
 	stat(uri: vscode.Uri): vscode.FileStat {
+		console.log(uri);
+		if (uri.path === '/System') {
+			return {
+				type: vscode.FileType.Directory,
+				ctime: 0,
+				mtime: 0,
+				size: 0,
+			};
+		}
 		return this._lookup(uri, false);
 	}
 
 	async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
+		console.log(uri);
 		const result: [string, vscode.FileType][] = [];
 
 		// Root folder, includes the connections
@@ -74,14 +83,22 @@ export class VirtualFilesystem implements vscode.FileSystemProvider {
 				result.push([connection.systemId, vscode.FileType.Directory]);
 			}
 		} else {
-			return [
-				['Local', vscode.FileType.Directory],
-				['Favorites', vscode.FileType.Directory],
-				['System', vscode.FileType.Directory],
-			];
-
 			let system = uri.authority.toUpperCase();
 			let client = this.connectionProvider.getConnectionClient(system);
+			// Not connected to this system, cant be expanded.
+			if (!client) {
+				return [];
+			}
+
+			/// System root
+			if (uri.path === '/') {
+				return [
+					['Local', vscode.FileType.Directory],
+					['Favorites', vscode.FileType.Directory],
+					['System', vscode.FileType.Directory],
+				];
+			}
+
 			let response: any = await client
 				?.getLanguageClient()
 				.sendRequest('filesystem/expand', {});

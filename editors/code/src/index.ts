@@ -2,9 +2,49 @@ import * as vscode from 'vscode';
 import { AddConnectionPanel } from './panels/addConnection';
 import { SystemConnectionProvider } from 'adapters/connectionProvider';
 import { ConnectionTreeProvider } from 'views/connectionTree';
-import type { SystemConnection } from 'core';
+import { ConnectionState, type SystemConnection } from 'core';
 import { EditConnectionPanel } from 'panels/editConnection';
-import { VirtualFilesystem } from 'adapters/fileSystemProvider';
+import { VirtualFilesystem } from 'adapters/filesystemProvider';
+
+class DecorationProviderTest implements vscode.FileDecorationProvider {
+	private readonly _onDidChangeFileDecorations = new vscode.EventEmitter<
+		vscode.Uri | vscode.Uri[] | undefined
+	>();
+	readonly onDidChangeFileDecorations: vscode.Event<
+		vscode.Uri | vscode.Uri[] | undefined
+	> = this._onDidChangeFileDecorations.event;
+
+	constructor(private connectionProvider: SystemConnectionProvider) {
+		this.connectionProvider.onDidChangeSystems(() => {
+			const uri = vscode.Uri.parse('adt://a4h');
+			this._onDidChangeFileDecorations.fire(uri);
+		});
+	}
+
+	provideFileDecoration(
+		uri: vscode.Uri,
+		_token: vscode.CancellationToken,
+	): vscode.ProviderResult<vscode.FileDecoration> {
+		if (!(uri.authority === 'a4h' && uri.path === '/')) {
+			return;
+		}
+
+		// Dont apply if connected
+		if (
+			this.connectionProvider.getConnection(uri.authority.toUpperCase())
+				?.state === ConnectionState.connected
+		) {
+			return;
+		}
+
+		return {
+			badge: '🔒',
+			color: new vscode.ThemeColor('descriptionForeground'),
+			propagate: false,
+			tooltip: `Not connected to system ${uri.authority.toUpperCase()}`,
+		};
+	}
+}
 
 export async function activate(context: vscode.ExtensionContext) {
 	let systemProvider = new SystemConnectionProvider(context.workspaceState);
@@ -29,6 +69,10 @@ export async function activate(context: vscode.ExtensionContext) {
 				EditConnectionPanel.render(context, conn, systemProvider);
 			},
 		),
+	);
+
+	vscode.window.registerFileDecorationProvider(
+		new DecorationProviderTest(systemProvider),
 	);
 
 	context.subscriptions.push(

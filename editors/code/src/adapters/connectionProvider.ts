@@ -62,6 +62,7 @@ export class SystemConnectionProvider {
 		if (index !== -1) {
 			this.connections[index].state = ConnectionState.connected;
 		}
+		this._onDidChangeSystems.fire();
 		return client;
 	}
 
