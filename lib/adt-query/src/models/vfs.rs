@@ -15,7 +15,7 @@ use std::borrow::Cow;
 /// owner, package or system.
 ///
 /// Handled through `CE_VFS_FACET` on the server side.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Eq, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Facet {
     /// The package to which the development object is assigned.
@@ -104,7 +104,7 @@ impl<'a> Serialize for Facet {
 /// a select statement for selecting from `VFS_ALL`
 ///
 /// When defining a package preselection, you can define a
-#[derive(Debug, Serialize, Clone, Builder)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Builder)]
 #[builder(setter(strip_option))]
 #[serde(rename = "vfs:preselection")]
 pub struct Preselection<'a> {
@@ -177,7 +177,7 @@ pub struct VirtualFolder {
 
     /// Link to this folder, to be clarified how this can be used.
     #[serde(rename = "atom:link")]
-    pub link: atom::Link,
+    pub link: Vec<atom::Link>,
 }
 
 #[derive(Debug, Serialize, Builder, Clone, Default)]
