@@ -48,6 +48,8 @@ export class SystemConnectionClient {
 				},
 			});
 			console.log(response);
+			response = await client.sendRequest('filesystem/root', {});
+			console.log(response);
 		} catch (err) {
 			client
 				.stop()

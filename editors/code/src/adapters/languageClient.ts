@@ -30,9 +30,6 @@ let client: LanguageClient;
  * running and we have a TCP connection to it.
  */
 export async function getLanguageClient(): Promise<LanguageClient> {
-	if (client) {
-		return client;
-	}
 	let ch = vscode.window.createOutputChannel('ABAP Language Server', 'abap');
 	let clientOptions: LanguageClientOptions = {
 		outputChannel: ch,

@@ -1,5 +1,3 @@
-use std::{collections::HashMap, sync::Arc};
-
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{InitializedParams, MessageType};
@@ -8,53 +6,43 @@ use tower_lsp::{
     lsp_types::{InitializeParams, InitializeResult, ServerCapabilities},
 };
 
-use adt_query::Client as AdtClient;
+pub type AdtClient = adt_query::Client<reqwest::Client>;
 
 /// A connection to a system, holds the adt connector, open files,
 
 #[derive(Debug)]
 pub struct SystemConnection {
     // context: open files, locks, local file buffers
-    pub adt_client: AdtClient<reqwest::Client>,
+    pub adt: AdtClient,
 }
 
-/// Map
-pub type ConnectionRegistry = HashMap<String, Arc<SystemConnection>>;
+impl SystemConnection {
+    pub fn new(adt: AdtClient) -> Self {
+        Self { adt }
+    }
+}
 
 #[derive(Debug)]
 pub struct Backend {
-    client: LspClient,
+    pub client: LspClient,
 
-    persistent: Arc<PersistentBackend>,
-}
-
-#[derive(Debug, Default)]
-pub struct PersistentBackend {
-    connections: Mutex<ConnectionRegistry>,
+    connection: Mutex<Option<SystemConnection>>,
 }
 
 impl Backend {
-    pub fn new(client: LspClient, persistent: &Arc<PersistentBackend>) -> Self {
+    pub fn new(client: LspClient) -> Self {
         return Self {
             client,
-            persistent: persistent.clone(),
+            connection: Mutex::new(None),
         };
     }
 
-    pub async fn connection(&self, system: &str) -> Option<Arc<SystemConnection>> {
-        self.persistent
-            .connections
-            .lock()
-            .await
-            .get(system)
-            .cloned()
+    pub fn connection(&self) -> &Mutex<Option<SystemConnection>> {
+        &self.connection
     }
 
-    pub async fn add_connection(&self, system: &str, client: AdtClient<reqwest::Client>) {
-        self.persistent.connections.lock().await.insert(
-            system.into(),
-            Arc::new(SystemConnection { adt_client: client }),
-        );
+    pub async fn set_connection(&self, conn: SystemConnection) {
+        *self.connection.lock().await = Some(conn);
     }
 }
 
@@ -79,5 +67,3 @@ impl LanguageServer for Backend {
         Ok(())
     }
 }
-
-impl Backend {}

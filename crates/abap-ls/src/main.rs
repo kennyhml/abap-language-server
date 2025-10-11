@@ -1,8 +1,7 @@
 mod backend;
-mod rpc;
-use std::sync::Arc;
+mod methods;
 
-use crate::backend::{Backend, PersistentBackend};
+use crate::backend::Backend;
 use tokio::net::TcpListener;
 use tower_lsp::{LspService, Server};
 
@@ -14,14 +13,21 @@ async fn main() {
     // looking to persist state throughout client reconnects
     let listener = TcpListener::bind("127.0.0.1:9257").await.unwrap();
 
-    let persistent = Arc::new(PersistentBackend::default());
-
     loop {
         let (stream, _) = listener.accept().await.unwrap();
-        let (read, write) = tokio::io::split(stream);
-        let (service, socket) = LspService::build(|client| Backend::new(client, &persistent))
-            .custom_method("connection/connect", Backend::connect)
-            .finish();
-        Server::new(read, write, socket).serve(service).await;
+
+        tokio::spawn(async move {
+            let (read, write) = tokio::io::split(stream);
+            let (service, socket) = LspService::build(|client| Backend::new(client))
+                .custom_method("connection/connect", Backend::connect)
+                .custom_method("filesystem/expand", Backend::expand)
+                .custom_method("filesystem/root", Backend::root)
+                .finish();
+            Server::new(read, write, socket).serve(service).await;
+
+            // The backend disconnects here, where we should temporarily send the context
+            // somewhere and hold it for some time, then when initializing the backend
+            // check if we can restore the previous state.
+        });
     }
 }

@@ -1,6 +1,4 @@
-use std::error::Error as _;
-
-use crate::backend::Backend;
+use crate::backend::{Backend, SystemConnection};
 use adt_query::{
     ClientBuilder, ConnectionParameters, HttpConnectionBuilder, auth::Credentials,
     dispatch::StatelessDispatch,
@@ -65,7 +63,7 @@ pub enum ConnectResult {
 
 impl Backend {
     pub async fn connect(&self, params: ConnectParams) -> Result<ConnectResult> {
-        if self.connection(&params.system_id).await.is_some() {
+        if self.connection().lock().await.is_some() {
             return Ok(ConnectResult::AlreadyConnected);
         }
 
@@ -93,7 +91,7 @@ impl Backend {
             _ => {}
         };
 
-        self.add_connection(&params.system_id, client).await;
+        self.set_connection(SystemConnection::new(client)).await;
         Ok(ConnectResult::Created)
     }
 }
