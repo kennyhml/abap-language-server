@@ -7,15 +7,6 @@ import { EditConnectionPanel } from 'panels/editConnection';
 import { VirtualFilesystem } from 'adapters/fileSystemProvider';
 
 export async function activate(context: vscode.ExtensionContext) {
-	const workspaceUri = vscode.Uri.parse('adt:/');
-	const workspaceFolders = vscode.workspace.workspaceFolders || [];
-	if (!workspaceFolders.some((folder) => folder.uri.scheme === 'adt')) {
-		vscode.workspace.updateWorkspaceFolders(0, 0, {
-			uri: workspaceUri,
-			name: 'ABAP',
-		});
-	}
-
 	let systemProvider = new SystemConnectionProvider(context.workspaceState);
 
 	const vfs = new VirtualFilesystem(systemProvider);
@@ -44,6 +35,20 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand(
 			'abap.connectToSystem',
 			async (conn: SystemConnection) => {
+				const workspaceUri = vscode.Uri.parse(`adt://${conn.systemId}`);
+				const workspaceFolders = vscode.workspace.workspaceFolders || [];
+				if (
+					!workspaceFolders.some(
+						(folder) =>
+							folder.uri.scheme === 'adt' &&
+							folder.uri.authority === conn.systemId,
+					)
+				) {
+					vscode.workspace.updateWorkspaceFolders(0, 0, {
+						uri: workspaceUri,
+						name: conn.systemId,
+					});
+				}
 				await systemProvider.createConnectionClient(conn);
 				vscode.window.showInformationMessage(
 					`Connecting to ${conn.systemId}...`,

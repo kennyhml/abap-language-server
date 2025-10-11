@@ -14,6 +14,13 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "iconThemes": [
+      {
+        "id": "abap",
+        "label": "ABAP",
+        "path": "./media/abap-icon-theme.json"
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "Example configuration",

@@ -2,7 +2,7 @@ use crate::backend::Backend;
 use adt_query::{
     api::repository::RepositoryContentBuilder,
     dispatch::StatelessDispatch,
-    models::vfs::{Facet, FacetOrder, PreselectionBuilder},
+    models::vfs::{Facet, Preselection},
     operation::Operation,
 };
 use serde::{Deserialize, Serialize};
@@ -24,33 +24,20 @@ pub struct FilesystemNode {
 /// and an editor context for the requested system.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ExpandPackageParams {
-    // Package to expand
-    pub package: String,
+pub struct ExpandParams {
+    // Name of the package to expand, the root will be expanded if empty.
+    pub package: Option<String>,
 }
-
-#[derive(Debug, Eq, PartialEq, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RootParams {}
 
 /// Response of **`filesystem/expand`**
 #[derive(Debug, Eq, PartialEq, Clone, Serialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub struct ExpandPackageResult {
-    // The subpackages and objects a package expands into
+#[serde(rename_all = "camelCase")]
+pub struct ExpandResult {
     pub nodes: Vec<FilesystemNode>,
 }
 
-/// Response of **`filesystem/expand`**
-#[derive(Debug, Eq, PartialEq, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RootResult {
-    // The subpackages and objects a package expands into
-    pub packages: Vec<FilesystemNode>,
-}
-
 impl Backend {
-    pub async fn root(&self, params: RootParams) -> Result<RootResult> {
+    pub async fn expand(&self, params: ExpandParams) -> Result<ExpandResult> {
         let lock = self.connection().lock().await;
         let client = match lock.as_ref() {
             None => Err(Error::internal_error())?,
@@ -62,67 +49,22 @@ impl Backend {
         // away because when we initially request the packages, we get informed whether the
         // package contains any subpackages by the "has_children_of_same_facet" attribute.
 
-        let op = RepositoryContentBuilder::default()
-            .order(vec![Facet::Package].into())
-            .build()
-            .map_err(|e| {
-                let mut err = Error::internal_error();
-                err.message = e.to_string().into();
-                err
-            })?;
+        let mut op = RepositoryContentBuilder::default();
+        if let Some(package) = params.package {
+            op.push_preselection(Preselection::new(Facet::Package, package));
+        } else {
+            op.order(vec![Facet::Package].into());
+        }
 
-        self.client
-            .log_message(MessageType::LOG, op.body().unwrap().unwrap())
-            .await;
-
-        let result = op.dispatch(&client.adt).await.map_err(|e| {
+        let op = op.build().map_err(|e| {
             let mut err = Error::internal_error();
             err.message = e.to_string().into();
             err
         })?;
 
-        let mut nodes: Vec<FilesystemNode> = Vec::new();
-
-        //TODO: Move instead of cloning
-        for obj in &result.body().folders {
-            nodes.push(FilesystemNode {
-                name: obj.name.clone(),
-                kind: "package".into(),
-            });
-        }
-        return Ok(RootResult { packages: nodes });
-    }
-
-    pub async fn expand(&self, params: ExpandPackageParams) -> Result<ExpandPackageResult> {
-        let lock = self.connection().lock().await;
-        let client = match lock.as_ref() {
-            None => Err(Error::internal_error())?,
-            Some(c) => c,
-        };
-
-        // The API doesnt allow us retrieve package and objects at the same time,
-        // so we must first request the packages, then the content. We can optimize this
-        // away because when we initially request the packages, we get informed whether the
-        // package contains any subpackages by the "has_children_of_same_facet" attribute.
-
-        let package_filter = PreselectionBuilder::default()
-            .facet(Facet::Package)
-            .include(params.package)
-            .build()
-            .map_err(|e| {
-                let mut err = Error::internal_error();
-                err.message = e.to_string().into();
-                err
-            })?;
-
-        let op = RepositoryContentBuilder::default()
-            .push_preselection(package_filter)
-            .build()
-            .map_err(|e| {
-                let mut err = Error::internal_error();
-                err.message = e.to_string().into();
-                err
-            })?;
+        self.client
+            .log_message(MessageType::LOG, op.body().unwrap().unwrap())
+            .await;
 
         let result = op.dispatch(&client.adt).await.map_err(|e| {
             let mut err = Error::internal_error();
@@ -139,6 +81,12 @@ impl Backend {
                 kind: obj.kind.clone(),
             });
         }
-        return Ok(ExpandPackageResult { nodes });
+        for obj in &result.body().folders {
+            nodes.push(FilesystemNode {
+                name: obj.name.clone(),
+                kind: "package".into(),
+            });
+        }
+        return Ok(ExpandResult { nodes });
     }
 }

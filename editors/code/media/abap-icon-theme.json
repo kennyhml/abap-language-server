@@ -1,0 +1,49 @@
+{
+    "hidesExplorerArrows": true,
+    "iconDefinitions": {
+        "_package_expanded": {
+            "iconPath": "./icons/package-expanded.svg",
+        },
+        "_package_collapsed": {
+            "iconPath": "./icons/package-collapsed.svg",
+        },
+        "_system_expanded": {
+            "iconPath": "./icons/system-expanded.svg"
+        },
+        "_system_collapsed": {
+            "iconPath": "./icons/system-collapsed.svg"
+        },
+        "_local_expanded": {
+            "iconPath": "./icons/local-expanded.svg"
+        },
+        "_local_collapsed": {
+            "iconPath": "./icons/local-collapsed.svg"
+        },
+        "_src_expanded": {
+            "iconPath": "./icons/src-expanded.svg"
+        },
+        "_src_collapsed": {
+            "iconPath": "./icons/src-collapsed.svg"
+        },
+        "_favs_expanded": {
+            "iconPath": "./icons/edit-expanded.svg"
+        },
+        "_favs_collapsed": {
+            "iconPath": "./icons/edit-collapsed.svg"
+        }
+    },
+    "rootFolder": "_system_collapsed",
+    "rootFolderExpanded": "_system_expanded",
+    "folder": "_package_collapsed",
+    "folderExpanded": "_package_expanded",
+    "folderNames": {
+        "Local": "_local_collapsed",
+        "Favorites": "_favs_collapsed",
+        "System": "_src_collapsed",
+    },
+    "folderNamesExpanded": {
+        "Local": "_local_expanded",
+        "Favorites": "_favs_expanded",
+        "System": "_src_expanded",
+    },
+}

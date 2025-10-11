@@ -48,16 +48,16 @@ export class SystemConnectionProvider {
 	 * @returns A {@link any} to perform operations on the connection or `undefined`
 	 */
 	public getConnectionClient(
-		connectionName: string,
+		systemId: string,
 	): SystemConnectionClient | undefined {
-		return this.clients.get(connectionName);
+		return this.clients.get(systemId);
 	}
 
 	public async createConnectionClient(
 		connection: SystemConnection,
 	): Promise<SystemConnectionClient> {
 		let client = await SystemConnectionClient.connect(connection);
-		this.clients.set(connection.name, client);
+		this.clients.set(connection.systemId, client);
 		const index = this.connections.findIndex((c) => c.name === connection.name);
 		if (index !== -1) {
 			this.connections[index].state = ConnectionState.connected;

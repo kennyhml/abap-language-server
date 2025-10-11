@@ -52,7 +52,6 @@ export class VirtualFilesystem implements vscode.FileSystemProvider {
 
 	constructor(private connectionProvider: SystemConnectionProvider) {
 		connectionProvider.onDidChangeSystems(() => {
-			//TODO: Find a better way to do this, using a command kind of..sucks
 			vscode.commands.executeCommand('vscode.refreshExplorer');
 		});
 	}
@@ -63,16 +62,37 @@ export class VirtualFilesystem implements vscode.FileSystemProvider {
 		return this._lookup(uri, false);
 	}
 
-	readDirectory(uri: vscode.Uri): [string, vscode.FileType][] {
+	async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
 		const result: [string, vscode.FileType][] = [];
 
-		// Root folde
+		// Root folder, includes the connections
 		if (!uri.authority && uri.path === '/') {
 			let activeConnections = this.connectionProvider.connections.filter(
 				(c) => c.state === ConnectionState.connected,
 			);
 			for (const connection of activeConnections) {
 				result.push([connection.systemId, vscode.FileType.Directory]);
+			}
+		} else {
+			return [
+				['Local', vscode.FileType.Directory],
+				['Favorites', vscode.FileType.Directory],
+				['System', vscode.FileType.Directory],
+			];
+
+			let system = uri.authority.toUpperCase();
+			let client = this.connectionProvider.getConnectionClient(system);
+			let response: any = await client
+				?.getLanguageClient()
+				.sendRequest('filesystem/expand', {});
+			for (const node of response.nodes) {
+				result.push([
+					// U+2044 + U+2009, without the spaces they get squashed together
+					node.name.replaceAll('/', ' ⁄ '),
+					node.kind === 'package'
+						? vscode.FileType.Directory
+						: vscode.FileType.File,
+				]);
 			}
 		}
 		return result;

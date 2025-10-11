@@ -35,10 +35,8 @@ export class SystemConnectionClient {
 		}
 		let client = await getLanguageClient();
 		try {
-			if (client.needsStart()) {
-				await client.start();
-			}
-			let response = await client.sendRequest('connection/connect', {
+			await client.start();
+			await client.sendRequest('connection/connect', {
 				...connection.params,
 				systemId: connection.systemId,
 				authentication: {
@@ -47,9 +45,6 @@ export class SystemConnectionClient {
 					password: 'ABAPtr2022#01',
 				},
 			});
-			console.log(response);
-			response = await client.sendRequest('filesystem/root', {});
-			console.log(response);
 		} catch (err) {
 			client
 				.stop()
