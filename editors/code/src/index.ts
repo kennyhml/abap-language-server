@@ -81,21 +81,25 @@ export async function activate(context: vscode.ExtensionContext) {
 			async (conn: SystemConnection) => {
 				const workspaceUri = vscode.Uri.parse(`adt://${conn.systemId}`);
 				const workspaceFolders = vscode.workspace.workspaceFolders || [];
-				if (
-					!workspaceFolders.some(
-						(folder) =>
-							folder.uri.scheme === 'adt' &&
-							folder.uri.authority === conn.systemId,
-					)
-				) {
-					vscode.workspace.updateWorkspaceFolders(0, 0, {
+				if (!workspaceFolders.some((folder) => folder.name === conn.systemId)) {
+					vscode.window.showWarningMessage(
+						`Adding ${conn.systemId} to workspace, extension might reload.`,
+					);
+					vscode.workspace.updateWorkspaceFolders(workspaceFolders.length, 0, {
 						uri: workspaceUri,
 						name: conn.systemId,
 					});
 				}
-				await systemProvider.createConnectionClient(conn);
-				vscode.window.showInformationMessage(
-					`Connecting to ${conn.systemId}...`,
+				vscode.window.withProgress(
+					{
+						location: vscode.ProgressLocation.Notification,
+						title: `Connecting to ${conn.systemId}...`,
+						cancellable: false,
+					},
+					async (progress, token) => {
+						await systemProvider.createConnectionClient(conn);
+						progress.report({ increment: 100, message: '' });
+					},
 				);
 			},
 		),

@@ -1,289 +1,164 @@
-import { ConnectionState } from 'core';
-import * as path from 'path';
-import * as vscode from 'vscode';
+import {
+	Disposable,
+	EventEmitter,
+	FileSystemError,
+	FileType,
+	Uri,
+	type FileChangeEvent,
+	type FileStat,
+	type FileSystemProvider,
+} from 'vscode';
 import type { SystemConnectionProvider } from './connectionProvider';
+import {
+	newRootNode,
+	type RootNode,
+	walk,
+	isExpandable,
+	NodeType,
+	type FilesystemNode,
+	newSystemRoot,
+	isPackage,
+	isSystem,
+} from '../core/filesystem';
 
-export class File implements vscode.FileStat {
-	type: vscode.FileType;
-	ctime: number;
-	mtime: number;
-	size: number;
+export class VirtualFilesystem implements FileSystemProvider {
+	private root: RootNode;
 
-	name: string;
-	data?: Uint8Array;
-
-	constructor(name: string) {
-		this.type = vscode.FileType.File;
-		this.ctime = Date.now();
-		this.mtime = Date.now();
-		this.size = 0;
-		this.name = name;
-	}
-}
-
-export class Directory implements vscode.FileStat {
-	type: vscode.FileType;
-	ctime: number;
-	mtime: number;
-	size: number;
-
-	name: string;
-	entries: Map<string, File | Directory>;
-
-	constructor(name: string) {
-		this.type = vscode.FileType.Directory;
-		this.ctime = Date.now();
-		this.mtime = Date.now();
-		this.size = 0;
-		this.name = name;
-		this.entries = new Map();
-	}
-}
-
-export type Entry = File | Directory;
-
-export class VirtualFilesystem implements vscode.FileSystemProvider {
-	root = new Directory('');
+	private _onDidChangeFile = new EventEmitter<FileChangeEvent[]>();
+	public readonly onDidChangeFile = this._onDidChangeFile.event;
 
 	constructor(private connectionProvider: SystemConnectionProvider) {
 		connectionProvider.onDidChangeSystems(() => {
-			// vscode.commands
-			// 	.executeCommand('vscode.refreshExplorer')
-			// 	.then(undefined, (err) => {
-			// 		console.error(err);
-			// 	});
+			//todo: Refresh the filesystem somehow???
+			// do we even need this event here? the workspace now determines
+			// what folders are shown,
 		});
+
+		// Should we just load from the connection provider here? probably?
+		this.root = newRootNode();
+		this.root.children = connectionProvider.connections.map((conn) =>
+			newSystemRoot(conn.systemId),
+		);
 	}
 
-	// --- manage file metadata
-
-	stat(uri: vscode.Uri): vscode.FileStat {
-		console.log(uri);
-		if (uri.path === '/System') {
-			return {
-				type: vscode.FileType.Directory,
-				ctime: 0,
-				mtime: 0,
-				size: 0,
-			};
+	stat(uri: Uri): FileStat {
+		let node = walk(this.root, this.breakIntoParts(uri));
+		if (node) {
+			return this.toFileStat(node);
 		}
-		return this._lookup(uri, false);
+		throw FileSystemError.FileNotFound(uri);
 	}
 
-	async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
-		console.log(uri);
-		const result: [string, vscode.FileType][] = [];
+	async readDirectory(uri: Uri): Promise<[string, FileType][]> {
+		const node = walk(this.root, this.breakIntoParts(uri));
+		if (!node) {
+			throw FileSystemError.FileNotFound(uri);
+		}
 
-		// Root folder, includes the connections
-		if (!uri.authority && uri.path === '/') {
-			let activeConnections = this.connectionProvider.connections.filter(
-				(c) => c.state === ConnectionState.connected,
-			);
-			for (const connection of activeConnections) {
-				result.push([connection.systemId, vscode.FileType.Directory]);
-			}
-		} else {
+		// For a system node, first check that the system is actually connected to.
+		if (isSystem(node)) {
 			let system = uri.authority.toUpperCase();
-			let client = this.connectionProvider.getConnectionClient(system);
-			// Not connected to this system, cant be expanded.
-			if (!client) {
+			let client = this.connectionProvider.getConnectionClient(system)!;
+			if (client === undefined) {
 				return [];
 			}
-
-			/// System root
-			if (uri.path === '/') {
-				return [
-					['Local', vscode.FileType.Directory],
-					['Favorites', vscode.FileType.Directory],
-					['System', vscode.FileType.Directory],
-				];
-			}
-
-			let response: any = await client
-				?.getLanguageClient()
-				.sendRequest('filesystem/expand', {});
-			for (const node of response.nodes) {
-				result.push([
-					// U+2044 + U+2009, without the spaces they get squashed together
-					node.name.replaceAll('/', ' ⁄ '),
-					node.kind === 'package'
-						? vscode.FileType.Directory
-						: vscode.FileType.File,
-				]);
-			}
 		}
-		return result;
+
+		// Undefined, not empty! Means they have not been fetched yet.
+		if (node.children === undefined) {
+			let system = uri.authority.toUpperCase();
+			let client = this.connectionProvider.getConnectionClient(system)!;
+
+			let response: any;
+			if (isPackage(node)) {
+				response = await client
+					.getLanguageClient()
+					.sendRequest('filesystem/expand', {
+						package: node.name,
+					});
+			} else {
+				response = await client
+					.getLanguageClient()
+					.sendRequest('filesystem/expand', {});
+			}
+			node.children = response.nodes.map(
+				(n: any): FilesystemNode => ({
+					kind: NodeType.Object,
+					name: n.name.replaceAll('/', ' ⁄ '),
+					object: n.kind,
+				}),
+			) as FilesystemNode[];
+		}
+
+		return node.children.map((node: FilesystemNode): [string, FileType] => [
+			node.name,
+			isExpandable(node) ? FileType.Directory : FileType.File,
+		]);
 	}
 
-	// --- manage file contents
+	/**
+	 * Transforms a {@link FilesystemNode} to the {@link FileStat} vscode expects.
+	 *
+	 * @param node The node to transform the metadata of.
+	 *
+	 * @returns The metadata of the file vscode can use to explore the tree.
+	 */
+	private toFileStat(node: FilesystemNode): FileStat {
+		return {
+			type: isExpandable(node) ? FileType.Directory : FileType.File,
+			ctime: 0,
+			mtime: 0,
+			size: 0,
+		};
+	}
 
-	readFile(uri: vscode.Uri): Uint8Array {
-		const data = this._lookupAsFile(uri, false).data;
-		if (data) {
-			return data;
+	/**
+	 * Breaks a URI into parts including the authority.
+	 *
+	 * @param uri The vscode URI to break into individual paths.
+	 * @returns The individual segments of the path broken down (sequentally).
+	 *
+	 * ### Example:
+	 * ```typescript
+	 * <<< "adt://a4h/System Library/Z_PACKAGE/CL_CRAZY_CLASS"
+	 * >>> ["A4H", "System Library", "Z_PACKAGE", "CL_CRAZY_CLASS"]
+	 */
+	private breakIntoParts(uri: Uri): string[] {
+		if (!uri.authority) {
+			return [];
 		}
-		throw vscode.FileSystemError.FileNotFound();
+		const pathSegments = uri.path
+			.split('/')
+			.filter((segment) => segment.length > 0);
+		return [uri.authority.toUpperCase(), ...pathSegments];
+	}
+
+	readFile(uri: Uri): Uint8Array {
+		throw FileSystemError.FileNotFound();
 	}
 
 	writeFile(
-		uri: vscode.Uri,
+		uri: Uri,
 		content: Uint8Array,
 		options: { create: boolean; overwrite: boolean },
 	): void {
-		const basename = path.posix.basename(uri.path);
-		const parent = this._lookupParentDirectory(uri);
-		let entry = parent.entries.get(basename);
-		if (entry instanceof Directory) {
-			throw vscode.FileSystemError.FileIsADirectory(uri);
-		}
-		if (!entry && !options.create) {
-			throw vscode.FileSystemError.FileNotFound(uri);
-		}
-		if (entry && options.create && !options.overwrite) {
-			throw vscode.FileSystemError.FileExists(uri);
-		}
-		if (!entry) {
-			entry = new File(basename);
-			parent.entries.set(basename, entry);
-			this._fireSoon({ type: vscode.FileChangeType.Created, uri });
-		}
-		entry.mtime = Date.now();
-		entry.size = content.byteLength;
-		entry.data = content;
-
-		this._fireSoon({ type: vscode.FileChangeType.Changed, uri });
+		throw FileSystemError.FileNotFound();
 	}
 
-	// --- manage files/folders
-
-	rename(
-		oldUri: vscode.Uri,
-		newUri: vscode.Uri,
-		options: { overwrite: boolean },
-	): void {
-		if (!options.overwrite && this._lookup(newUri, true)) {
-			throw vscode.FileSystemError.FileExists(newUri);
-		}
-
-		const entry = this._lookup(oldUri, false);
-		const oldParent = this._lookupParentDirectory(oldUri);
-
-		const newParent = this._lookupParentDirectory(newUri);
-		const newName = path.posix.basename(newUri.path);
-
-		oldParent.entries.delete(entry.name);
-		entry.name = newName;
-		newParent.entries.set(newName, entry);
-
-		this._fireSoon(
-			{ type: vscode.FileChangeType.Deleted, uri: oldUri },
-			{ type: vscode.FileChangeType.Created, uri: newUri },
-		);
+	rename(oldUri: Uri, newUri: Uri, options: { overwrite: boolean }): void {
+		throw FileSystemError.FileNotFound();
 	}
 
-	delete(uri: vscode.Uri): void {
-		const dirname = uri.with({ path: path.posix.dirname(uri.path) });
-		const basename = path.posix.basename(uri.path);
-		const parent = this._lookupAsDirectory(dirname, false);
-		if (!parent.entries.has(basename)) {
-			throw vscode.FileSystemError.FileNotFound(uri);
-		}
-		parent.entries.delete(basename);
-		parent.mtime = Date.now();
-		parent.size -= 1;
-		this._fireSoon(
-			{ type: vscode.FileChangeType.Changed, uri: dirname },
-			{ uri, type: vscode.FileChangeType.Deleted },
-		);
+	delete(uri: Uri): void {
+		throw FileSystemError.FileNotFound();
 	}
 
-	createDirectory(uri: vscode.Uri): void {
-		const basename = path.posix.basename(uri.path);
-		const dirname = uri.with({ path: path.posix.dirname(uri.path) });
-		const parent = this._lookupAsDirectory(dirname, false);
-
-		const entry = new Directory(basename);
-		parent.entries.set(entry.name, entry);
-		parent.mtime = Date.now();
-		parent.size += 1;
-		this._fireSoon(
-			{ type: vscode.FileChangeType.Changed, uri: dirname },
-			{ type: vscode.FileChangeType.Created, uri },
-		);
+	createDirectory(uri: Uri): void {
+		throw FileSystemError.FileNotFound();
 	}
 
-	// --- lookup
-
-	private _lookup(uri: vscode.Uri, silent: false): Entry;
-	private _lookup(uri: vscode.Uri, silent: boolean): Entry | undefined;
-	private _lookup(uri: vscode.Uri, silent: boolean): Entry | undefined {
-		const parts = uri.path.split('/');
-		let entry: Entry = this.root;
-		for (const part of parts) {
-			if (!part) {
-				continue;
-			}
-			let child: Entry | undefined;
-			if (entry instanceof Directory) {
-				child = entry.entries.get(part);
-			}
-			if (!child) {
-				if (!silent) {
-					throw vscode.FileSystemError.FileNotFound(uri);
-				} else {
-					return undefined;
-				}
-			}
-			entry = child;
-		}
-		return entry;
-	}
-
-	private _lookupAsDirectory(uri: vscode.Uri, silent: boolean): Directory {
-		const entry = this._lookup(uri, silent);
-		if (entry instanceof Directory) {
-			return entry;
-		}
-		throw vscode.FileSystemError.FileNotADirectory(uri);
-	}
-
-	private _lookupAsFile(uri: vscode.Uri, silent: boolean): File {
-		const entry = this._lookup(uri, silent);
-		if (entry instanceof File) {
-			return entry;
-		}
-		throw vscode.FileSystemError.FileIsADirectory(uri);
-	}
-
-	private _lookupParentDirectory(uri: vscode.Uri): Directory {
-		const dirname = uri.with({ path: path.posix.dirname(uri.path) });
-		return this._lookupAsDirectory(dirname, false);
-	}
-
-	// --- manage file events
-
-	private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
-	private _bufferedEvents: vscode.FileChangeEvent[] = [];
-	private _fireSoonHandle?: NodeJS.Timeout;
-
-	readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> =
-		this._emitter.event;
-
-	watch(_resource: vscode.Uri): vscode.Disposable {
+	watch(_resource: Uri): Disposable {
 		// ignore, fires for all changes...
-		return new vscode.Disposable(() => {});
-	}
-
-	private _fireSoon(...events: vscode.FileChangeEvent[]): void {
-		this._bufferedEvents.push(...events);
-
-		if (this._fireSoonHandle) {
-			clearTimeout(this._fireSoonHandle);
-		}
-
-		this._fireSoonHandle = setTimeout(() => {
-			this._emitter.fire(this._bufferedEvents);
-			this._bufferedEvents.length = 0;
-		}, 5);
+		return new Disposable(() => {});
 	}
 }

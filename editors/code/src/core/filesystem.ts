@@ -41,6 +41,13 @@ export const NodeType = {
 	Root: 'root',
 
 	/**
+	 * The system root node, while this is technically also a 'grouping', it needs to
+	 * be treated differently because its name cant be known at compile time and it also
+	 * has a constant set of children.
+	 */
+	System: 'system',
+
+	/**
 	 * A {@link VirtualGrouping virtual grouping} to organize related objects.
 	 */
 	Group: 'group',
@@ -78,7 +85,7 @@ export type VirtualGrouping =
  *
  * To access the children of the node, you must first expand it with **`filesystem/expand`**.
  */
-export type FilesystemNode = ObjectNode | RootNode | GroupNode;
+export type FilesystemNode = ObjectNode | SystemNode | GroupNode | RootNode;
 
 /**
  * Base properties for all filesystem nodes.
@@ -94,7 +101,7 @@ interface BaseNode {
 	 * The children of the node, in the case of a package, this could be
 	 * other packages or the development objects directly assigned to it.
 	 */
-	children: FilesystemNode[];
+	children?: FilesystemNode[];
 }
 
 /**
@@ -124,10 +131,19 @@ export interface GroupNode extends BaseNode {
 /**
  * A node representing the root of the filesystem.
  */
+export interface SystemNode extends BaseNode {
+	kind: typeof NodeType.System;
+
+	children: [GroupNode, GroupNode, GroupNode];
+}
+
+/**
+ * A node representing the root of the filesystem.
+ */
 export interface RootNode extends BaseNode {
 	kind: typeof NodeType.Root;
 
-	children: [GroupNode, GroupNode, GroupNode];
+	children?: SystemNode[];
 }
 
 /**
@@ -137,15 +153,23 @@ export interface RootNode extends BaseNode {
  *
  * @returns A root node with the name of the system and the required groupings.
  */
-export function newRoot(system: string): RootNode {
+export function newSystemRoot(system: string): SystemNode {
 	return {
 		name: system,
-		kind: NodeType.Root,
+		kind: NodeType.System,
 		children: [
-			{ name: VirtualGrouping.Local, children: [], kind: NodeType.Group },
-			{ name: VirtualGrouping.Favorites, children: [], kind: NodeType.Group },
-			{ name: VirtualGrouping.System, children: [], kind: NodeType.Group },
+			{ name: VirtualGrouping.Local, kind: NodeType.Group },
+			{ name: VirtualGrouping.Favorites, kind: NodeType.Group },
+			{ name: VirtualGrouping.System, kind: NodeType.Group },
 		],
+	};
+}
+
+export function newRootNode(): RootNode {
+	return {
+		name: '', // root node has no visible name
+		kind: NodeType.Root,
+		children: [],
 	};
 }
 
@@ -154,6 +178,13 @@ export function newRoot(system: string): RootNode {
  */
 export function isRoot(node: FilesystemNode): node is RootNode {
 	return node.kind === NodeType.Root;
+}
+
+/**
+ * @returns Whether the given node is the {@link RootNode}.
+ */
+export function isSystem(node: FilesystemNode): node is SystemNode {
+	return node.kind === NodeType.System;
 }
 
 /**
@@ -168,6 +199,24 @@ export function isGroup(node: FilesystemNode): node is GroupNode {
  */
 export function isObject(node: FilesystemNode): node is ObjectNode {
 	return node.kind === NodeType.Object;
+}
+
+export function walk(
+	node: FilesystemNode,
+	path: string[],
+): FilesystemNode | undefined {
+	let curr: FilesystemNode | undefined = node;
+	for (const segment of path) {
+		if (!curr) {
+			break;
+		}
+		curr = curr?.children?.find((node) => node.name === segment);
+	}
+	return curr;
+}
+
+export function isExpandable(node: FilesystemNode) {
+	return isPackage(node) || isGroup(node) || isSystem(node);
 }
 
 /**

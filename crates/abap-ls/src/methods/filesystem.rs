@@ -84,7 +84,7 @@ impl Backend {
         for obj in &result.body().folders {
             nodes.push(FilesystemNode {
                 name: obj.name.clone(),
-                kind: "package".into(),
+                kind: "DEVC/K".into(),
             });
         }
         return Ok(ExpandResult { nodes });

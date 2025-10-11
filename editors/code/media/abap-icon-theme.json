@@ -37,13 +37,13 @@
     "folder": "_package_collapsed",
     "folderExpanded": "_package_expanded",
     "folderNames": {
-        "Local": "_local_collapsed",
-        "Favorites": "_favs_collapsed",
-        "System": "_src_collapsed",
+        "Local Objects": "_local_collapsed",
+        "Favorite Objects": "_favs_collapsed",
+        "System Library": "_src_collapsed",
     },
     "folderNamesExpanded": {
-        "Local": "_local_expanded",
-        "Favorites": "_favs_expanded",
-        "System": "_src_expanded",
+        "Local Objects": "_local_expanded",
+        "Favorite Objects": "_favs_expanded",
+        "System Library": "_src_expanded",
     },
 }
