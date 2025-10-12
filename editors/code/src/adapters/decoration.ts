@@ -1,5 +1,5 @@
 import type { ConnectionManager } from 'lib/connection';
-import { getConnectionUri, getTargetSystem } from 'lib/uri';
+import { ADT_URI_SCHEME, getConnectionUri, getTargetSystem } from 'lib/uri';
 import {
 	Uri,
 	FileDecoration,
@@ -49,32 +49,54 @@ export class SystemDecorationProvider implements FileDecorationProvider {
 		uri: Uri,
 		_token: CancellationToken,
 	): ProviderResult<FileDecoration> {
-		// We only want to apply decoration when its a system we are not connected to.
-		// For any other case, its okay to just keep the default decoration.
-		if (this.isUnknownOrConnected(uri)) {
+		if (uri.scheme !== ADT_URI_SCHEME) {
 			return;
 		}
-		return {
-			badge: '🔒',
-			color: new ThemeColor('descriptionForeground'),
-			propagate: false,
-			tooltip: `Not connected to system ${uri.authority.toUpperCase()}`,
-		};
+		const system = getTargetSystem(uri);
+
+		if (!this.isExistingSystem(system)) {
+			return {
+				badge: '⚠️',
+				color: new ThemeColor('errorForeground'),
+				propagate: false,
+				tooltip: `Dangling System: No connection data for '${system}' exists.`,
+			};
+		}
+
+		if (!this.isActiveSystem(system)) {
+			return {
+				badge: '🔒',
+				color: new ThemeColor('descriptionForeground'),
+				propagate: false,
+				tooltip: `Not connected to system ${system}.`,
+			};
+		}
 	}
 
 	/**
-	 * Checks whether the filesystem uri points to an entry not related to our
-	 * extension or to a system that is already connected to.
+	 * Checks whether the filesystem uri points to a system that exists.
 	 *
-	 * @param uri The `Uri` supplied by vscode to get the decoration for
+	 * For example, the workspace might still have a system added that was already
+	 * removed from the global connection pool, thus its essentially a dangling
+	 * system that we cant connect to because no data to connect with exists.
 	 *
-	 * @returns Whether the entry pointed to by the uri is unknown or an active system.
+	 * @param name The name of the system, extracted from the authority of the `Uri`
+	 *
+	 * @returns Whether the entry pointed to by the uri is a valid system to connect to.
 	 */
-	private isUnknownOrConnected(uri: Uri): boolean {
-		let system = getTargetSystem(uri);
-		return (
-			!this.connections.getData(system) || !!this.connections.getActive(system)
-		);
+	private isExistingSystem(name: string): boolean {
+		return !!this.connections.getData(name);
+	}
+
+	/**
+	 * Checks whether the filesystem uri points to an system that is currently connected to.
+	 *
+	 * @param name The name of the system, extracted from the authority of the `Uri`
+	 *
+	 * @returns Whether the entry pointed to by the uri is a system with an active connection.
+	 */
+	private isActiveSystem(name: string): boolean {
+		return !!this.connections.getActive(name);
 	}
 
 	private readonly _onDidChangeFileDecorations =
