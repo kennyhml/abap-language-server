@@ -87,6 +87,8 @@ export type VirtualGrouping =
  */
 export type FilesystemNode = ObjectNode | SystemNode | GroupNode | RootNode;
 
+const UNICODE_FAKE_FORWARD_SLASH = ' ⁄ ';
+
 /**
  * Base properties for all filesystem nodes.
  */
@@ -243,4 +245,63 @@ export function isPackage(
 		node.kind === NodeType.RepositoryObject &&
 		node.object === RepositoryObject.Package
 	);
+}
+
+/**
+ * Converts a node name to the external representation in the filesystem.
+ *
+ * For one, this means replacing slashes `/` with a fake unicode version as
+ * they are not allowed in file/folder names. In the case of repository objects
+ * that are not packages, the 4 letter identifier of the object type is also
+ * added to the name of a suffix. For example, the program (`"PROG/P"`) __Z_TEST_PROGRAM__
+ * is converted to __Z_TEST_PROGRAM.prog__.
+ *
+ * It is critical to reverse these modifications when resolving the node names
+ * back to their internal representation that the server deals with.
+ *
+ * See {@link toRealName} for the opposite operation.
+ *
+ * @param node The node to return the external node name for.
+ *
+ * @returns A display name to use for the node in the filesystem.
+ */
+export function toDisplayName(node: FilesystemNode): string {
+	return (
+		node.name.replaceAll('/', UNICODE_FAKE_FORWARD_SLASH) + objectSuffix(node)
+	);
+}
+
+/**
+ * Converts a node name from the external representation back to its real name.
+ *
+ * Basically does the opposite of {@link toDisplayName}
+ *
+ * @param node The display name to return the real node name for.
+ *
+ * @returns The real (original) name of a node prior.
+ */
+export function toRealName(name: string): string {
+	name = name.replaceAll(UNICODE_FAKE_FORWARD_SLASH, '/');
+	// A dot should be illegal in file / package names, so if there is one we can safely
+	// assume that it is because of our suffix.
+	if (name.includes('.')) {
+		name = name.substring(0, -4);
+	}
+	return name;
+}
+
+/**
+ * Returns the suffix for any node that is a {@link RepositoryObject} but not a package.
+ *
+ * @param node The node to return the suffix for.
+ *
+ * @returns Depending on the concrete node type, either an empty string or a suffix to append.
+ */
+function objectSuffix(node: FilesystemNode): string {
+	if (isObject(node) && !isPackage(node)) {
+		// TODO: Using the first 4 characters of the object name isnt ideal, alot of
+		// different objects share it (e.g) PROG/P = program, PROG/I = Include, both are PROG.
+		return '.' + node.object.substring(0, 4).toLowerCase();
+	}
+	return '';
 }

@@ -18,6 +18,8 @@ import {
 	isSystem,
 	type RootNode,
 	type FilesystemNode,
+	toDisplayName,
+	toRealName,
 } from '../core/filesystem';
 
 export class VirtualFilesystem implements FileSystemProvider {
@@ -86,7 +88,7 @@ export class VirtualFilesystem implements FileSystemProvider {
 		}
 
 		return node.children.map((node: FilesystemNode): [string, FileType] => [
-			node.name.replaceAll('/', ' ⁄ '),
+			toDisplayName(node),
 			isExpandable(node) ? FileType.Directory : FileType.File,
 		]);
 	}
@@ -127,7 +129,7 @@ export class VirtualFilesystem implements FileSystemProvider {
 		const pathSegments = uri.path
 			.split('/')
 			.filter((segment) => segment.length > 0)
-			.map((segment) => segment.replaceAll(' ⁄ ', '/'));
+			.map(toRealName);
 		return [uri.authority.toUpperCase(), ...pathSegments];
 	}
 

@@ -30,6 +30,9 @@
         },
         "_favs_collapsed": {
             "iconPath": "./icons/edit-collapsed.svg"
+        },
+        "_abap_icon": {
+            "iconPath": "./icons/abap.svg"
         }
     },
     "rootFolder": "_system_collapsed",
