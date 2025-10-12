@@ -10,15 +10,18 @@ import {
 } from 'vscode';
 import type { SystemConnectionProvider } from './connectionProvider';
 import {
+	isFavorites,
+	isLocalObjects,
 	newRootNode,
-	type RootNode,
 	walk,
 	isExpandable,
-	NodeType,
-	type FilesystemNode,
 	newSystemRoot,
-	isPackage,
 	isSystem,
+	type RootNode,
+	type FilesystemNode,
+	RepositoryObject,
+	NodeType,
+	isPackage,
 } from '../core/filesystem';
 
 export class VirtualFilesystem implements FileSystemProvider {
@@ -41,6 +44,16 @@ export class VirtualFilesystem implements FileSystemProvider {
 		);
 	}
 
+	/**
+	 * Provisions metadata about the requested file. This also controls how the
+	 * filesystem is queried later down the line. For example, if the returned
+	 * file type of a uri is a directory, {@link readDirectory} will be called on it.
+	 *
+	 * @param uri The vscode file/folder Uri
+	 *
+	 * @returns Metadata about the requested file, see {@link toFileStat}.
+	 */
+
 	stat(uri: Uri): FileStat {
 		let node = walk(this.root, this.breakIntoParts(uri));
 		if (node) {
@@ -49,49 +62,35 @@ export class VirtualFilesystem implements FileSystemProvider {
 		throw FileSystemError.FileNotFound(uri);
 	}
 
+	/**
+	 * Expands the directory structure at the given uri, how exactly the nodes
+	 * are expanded is dependent on the concrete type of node.
+	 *
+	 * While the method only returns a mapping of the names to the file types,
+	 * the nodes are also added onto the internal tree representation and will
+	 * be available instantly in the next scan.
+	 *
+	 * @param uri The vscode file/folder URI
+	 *
+	 * @returns A list of tuples mapping the sub-objects to their filetype.
+	 */
 	async readDirectory(uri: Uri): Promise<[string, FileType][]> {
 		const node = walk(this.root, this.breakIntoParts(uri));
 		if (!node) {
 			throw FileSystemError.FileNotFound(uri);
 		}
 
-		// For a system node, first check that the system is actually connected to.
-		if (isSystem(node)) {
-			let system = uri.authority.toUpperCase();
-			let client = this.connectionProvider.getConnectionClient(system)!;
-			if (client === undefined) {
-				return [];
-			}
+		if (this.isInaccessibleSystem(node)) {
+			return [];
 		}
 
-		// Undefined, not empty! Means they have not been fetched yet.
-		if (node.children === undefined) {
-			let system = uri.authority.toUpperCase();
-			let client = this.connectionProvider.getConnectionClient(system)!;
-
-			let response: any;
-			if (isPackage(node)) {
-				response = await client
-					.getLanguageClient()
-					.sendRequest('filesystem/expand', {
-						package: node.name,
-					});
-			} else {
-				response = await client
-					.getLanguageClient()
-					.sendRequest('filesystem/expand', {});
-			}
-			node.children = response.nodes.map(
-				(n: any): FilesystemNode => ({
-					kind: NodeType.Object,
-					name: n.name.replaceAll('/', ' ⁄ '),
-					object: n.kind,
-				}),
-			) as FilesystemNode[];
+		// Expand only for undefined children, empty means it has been expanded.
+		if (!node.children) {
+			node.children = await this.expand(node, uri.authority.toUpperCase());
 		}
 
 		return node.children.map((node: FilesystemNode): [string, FileType] => [
-			node.name,
+			node.name.replaceAll('/', ' ⁄ '),
 			isExpandable(node) ? FileType.Directory : FileType.File,
 		]);
 	}
@@ -104,6 +103,7 @@ export class VirtualFilesystem implements FileSystemProvider {
 	 * @returns The metadata of the file vscode can use to explore the tree.
 	 */
 	private toFileStat(node: FilesystemNode): FileStat {
+		// Do we need ctime, mtime and size? Not really sure where to get it from!
 		return {
 			type: isExpandable(node) ? FileType.Directory : FileType.File,
 			ctime: 0,
@@ -127,14 +127,54 @@ export class VirtualFilesystem implements FileSystemProvider {
 		if (!uri.authority) {
 			return [];
 		}
+		// Make sure to split the path BEFORE replacing the fake slashes!!
 		const pathSegments = uri.path
 			.split('/')
-			.filter((segment) => segment.length > 0);
+			.filter((segment) => segment.length > 0)
+			.map((segment) => segment.replaceAll(' ⁄ ', '/'));
 		return [uri.authority.toUpperCase(), ...pathSegments];
 	}
 
+	private async expand(
+		node: FilesystemNode,
+		system: string,
+	): Promise<FilesystemNode[]> {
+		let client = this.connectionProvider
+			.getConnectionClient(system)!
+			.getLanguageClient();
+
+		// Format of the request differs based on what node we are expanding
+		let params = {};
+
+		if (isLocalObjects(node)) {
+			params = { package: '$TMP' };
+		} else if (isFavorites(node)) {
+			return [];
+		} else if (isPackage(node)) {
+			params = { package: node.name };
+		}
+
+		let result: { nodes: { kind: RepositoryObject; name: string }[] } =
+			await client.sendRequest('filesystem/expand', params);
+
+		// The only concept the server knows is actual repository objects
+		return result.nodes.map((node): FilesystemNode => {
+			return {
+				name: node.name,
+				kind: NodeType.Object,
+				object: node.kind,
+			};
+		});
+	}
+
+	private isInaccessibleSystem(node: FilesystemNode): boolean {
+		return (
+			isSystem(node) && !this.connectionProvider.getConnectionClient(node.name)
+		);
+	}
+
 	readFile(uri: Uri): Uint8Array {
-		throw FileSystemError.FileNotFound();
+		return new TextEncoder().encode(uri.toString());
 	}
 
 	writeFile(

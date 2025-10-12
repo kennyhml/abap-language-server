@@ -195,6 +195,26 @@ export function isGroup(node: FilesystemNode): node is GroupNode {
 }
 
 /**
+ * @returns Whether the given node is the {@link RootNode}.
+ */
+export function isLocalObjects(
+	node: FilesystemNode,
+): node is GroupNode & { name: typeof VirtualGrouping.Local } {
+	return node.kind === NodeType.Group && node.name === VirtualGrouping.Local;
+}
+
+/**
+ * @returns Whether the given node is the {@link RootNode}.
+ */
+export function isFavorites(
+	node: FilesystemNode,
+): node is GroupNode & { name: typeof VirtualGrouping.Favorites } {
+	return (
+		node.kind === NodeType.Group && node.name === VirtualGrouping.Favorites
+	);
+}
+
+/**
  * @returns Whether the given node is an {@link ObjectNode}.
  */
 export function isObject(node: FilesystemNode): node is ObjectNode {
