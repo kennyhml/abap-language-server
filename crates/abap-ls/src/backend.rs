@@ -1,5 +1,5 @@
-use tokio::sync::Mutex;
-use tower_lsp::jsonrpc::Result;
+use tokio::sync::OnceCell;
+use tower_lsp::jsonrpc::{Error, Result};
 use tower_lsp::lsp_types::{InitializedParams, MessageType};
 use tower_lsp::{
     Client as LspClient, LanguageServer,
@@ -26,23 +26,19 @@ impl SystemConnection {
 pub struct Backend {
     pub client: LspClient,
 
-    connection: Mutex<Option<SystemConnection>>,
+    pub once: OnceCell<AdtClient>,
 }
 
 impl Backend {
     pub fn new(client: LspClient) -> Self {
         return Self {
             client,
-            connection: Mutex::new(None),
+            once: OnceCell::new(),
         };
     }
 
-    pub fn connection(&self) -> &Mutex<Option<SystemConnection>> {
-        &self.connection
-    }
-
-    pub async fn set_connection(&self, conn: SystemConnection) {
-        *self.connection.lock().await = Some(conn);
+    pub async fn client(&self) -> Result<&AdtClient> {
+        self.once.get().ok_or(Error::internal_error())
     }
 }
 

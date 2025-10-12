@@ -63,7 +63,7 @@ pub enum ConnectResult {
 
 impl Backend {
     pub async fn connect(&self, params: ConnectParams) -> Result<ConnectResult> {
-        if self.connection().lock().await.is_some() {
+        if self.client().await.ok().is_some() {
             return Ok(ConnectResult::AlreadyConnected);
         }
 
@@ -91,7 +91,8 @@ impl Backend {
             _ => {}
         };
 
-        self.set_connection(SystemConnection::new(client)).await;
+        self.once.set(client).unwrap();
+        // self.set_connection(SystemConnection::new(client)).await;
         Ok(ConnectResult::Created)
     }
 }

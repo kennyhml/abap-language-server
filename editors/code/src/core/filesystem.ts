@@ -55,7 +55,7 @@ export const NodeType = {
 	/**
 	 * An actual {@link ObjectType repository object} such as a package or a class.
 	 */
-	Object: 'object',
+	RepositoryObject: 'repositoryObject',
 } as const;
 
 /**
@@ -108,7 +108,7 @@ interface BaseNode {
  * A node representing a repository object, e.g. a package or a class.
  */
 export interface ObjectNode extends BaseNode {
-	kind: typeof NodeType.Object;
+	kind: typeof NodeType.RepositoryObject;
 
 	/**
 	 * The type of repository object such as `Package` or `Class`..
@@ -133,8 +133,6 @@ export interface GroupNode extends BaseNode {
  */
 export interface SystemNode extends BaseNode {
 	kind: typeof NodeType.System;
-
-	children: [GroupNode, GroupNode, GroupNode];
 }
 
 /**
@@ -157,11 +155,7 @@ export function newSystemRoot(system: string): SystemNode {
 	return {
 		name: system,
 		kind: NodeType.System,
-		children: [
-			{ name: VirtualGrouping.Local, kind: NodeType.Group },
-			{ name: VirtualGrouping.Favorites, kind: NodeType.Group },
-			{ name: VirtualGrouping.System, kind: NodeType.Group },
-		],
+		children: undefined,
 	};
 }
 
@@ -218,7 +212,7 @@ export function isFavorites(
  * @returns Whether the given node is an {@link ObjectNode}.
  */
 export function isObject(node: FilesystemNode): node is ObjectNode {
-	return node.kind === NodeType.Object;
+	return node.kind === NodeType.RepositoryObject;
 }
 
 export function walk(
@@ -246,6 +240,7 @@ export function isPackage(
 	node: FilesystemNode,
 ): node is ObjectNode & { object: typeof RepositoryObject.Package } {
 	return (
-		node.kind === NodeType.Object && node.object === RepositoryObject.Package
+		node.kind === NodeType.RepositoryObject &&
+		node.object === RepositoryObject.Package
 	);
 }

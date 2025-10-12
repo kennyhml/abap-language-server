@@ -11,7 +11,6 @@ import {
 import type { SystemConnectionProvider } from './connectionProvider';
 import {
 	isFavorites,
-	isLocalObjects,
 	newRootNode,
 	walk,
 	isExpandable,
@@ -19,9 +18,6 @@ import {
 	isSystem,
 	type RootNode,
 	type FilesystemNode,
-	RepositoryObject,
-	NodeType,
-	isPackage,
 } from '../core/filesystem';
 
 export class VirtualFilesystem implements FileSystemProvider {
@@ -143,28 +139,17 @@ export class VirtualFilesystem implements FileSystemProvider {
 			.getConnectionClient(system)!
 			.getLanguageClient();
 
-		// Format of the request differs based on what node we are expanding
-		let params = {};
-
-		if (isLocalObjects(node)) {
-			params = { package: '$TMP' };
-		} else if (isFavorites(node)) {
+		if (isFavorites(node)) {
 			return [];
-		} else if (isPackage(node)) {
-			params = { package: node.name };
 		}
 
-		let result: { nodes: { kind: RepositoryObject; name: string }[] } =
-			await client.sendRequest('filesystem/expand', params);
+		let result: { children: FilesystemNode[] } = await client.sendRequest(
+			'filesystem/expand',
+			{ node },
+		);
 
 		// The only concept the server knows is actual repository objects
-		return result.nodes.map((node): FilesystemNode => {
-			return {
-				name: node.name,
-				kind: NodeType.Object,
-				object: node.kind,
-			};
-		});
+		return result.children;
 	}
 
 	private isInaccessibleSystem(node: FilesystemNode): boolean {
