@@ -35,6 +35,7 @@
             "iconPath": "./icons/abap.svg"
         }
     },
+    "file": "_abap_icon",
     "rootFolder": "_system_collapsed",
     "rootFolderExpanded": "_system_expanded",
     "folder": "_package_collapsed",

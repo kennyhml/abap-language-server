@@ -1,12 +1,13 @@
 <script lang="ts">
 	import {
+		type ConnectionResult,
 		type EditConnectionMessages,
-		type SystemConnection,
+		type ConnectionData,
 		MessageChannel,
 	} from 'extension';
 	import SystemForm from './lib/SystemForm.svelte';
 
-	let systemData: SystemConnection | undefined = $state();
+	let systemData: ConnectionData | undefined = $state();
 	let vscode = acquireVsCodeApi();
 
 	let messageChannel = new MessageChannel<EditConnectionMessages>({
@@ -20,15 +21,15 @@
 	});
 
 	function onConnectionSubmitted(
-		connection: SystemConnection,
-	): Promise<{ success: boolean; message: string }> {
+		connection: ConnectionData,
+	): Promise<ConnectionResult> {
 		return messageChannel.send('doEdit', { connection });
 	}
 
 	function onConnectionTestRequested(
-		connection: SystemConnection,
-	): Promise<{ success: boolean; message: string }> {
-		return messageChannel.send('doEdit', { connection, test: true });
+		connection: ConnectionData,
+	): Promise<ConnectionResult> {
+		return messageChannel.send('doTest', { connection });
 	}
 </script>
 

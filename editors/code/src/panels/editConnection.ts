@@ -1,9 +1,9 @@
-import type { SystemConnectionProvider } from 'adapters/connectionProvider';
 import {
 	MessageChannel,
+	type ConnectionData,
 	type EditConnectionMessages,
-	type SystemConnection,
 } from 'core';
+import type { ConnectionManager } from 'lib';
 import path from 'path';
 import type { Disposable, ExtensionContext, WebviewPanel } from 'vscode';
 import * as vscode from 'vscode';
@@ -15,8 +15,8 @@ export class EditConnectionPanel implements Disposable {
 	private messageChannel: MessageChannel<EditConnectionMessages>;
 
 	private constructor(
-		private connectionProvider: SystemConnectionProvider,
-		private connectionToEdit: SystemConnection,
+		private connections: ConnectionManager,
+		private connectionToEdit: ConnectionData,
 		context: ExtensionContext,
 	) {
 		this.panel = window.createWebviewPanel(
@@ -56,23 +56,30 @@ export class EditConnectionPanel implements Disposable {
 		});
 
 		this.messageChannel.onDidReceive('doEdit', async (data) => {
-			if (data.test) {
-				return await this.connectionProvider.testConnection(data.connection);
-			} else {
-				return await this.connectionProvider.updateConnection(
-					this.connectionToEdit.name,
+			try {
+				this.connections.updateGlobalConnection(
+					this.connectionToEdit,
 					data.connection,
 				);
+				return { success: true, message: 'Connection added' };
+			} catch (err: any) {
+				return { success: false, message: err.message };
 			}
 		});
 
-		this.messageChannel.send('initialize', { connection: connectionToEdit });
+		this.messageChannel.onDidReceive('doTest', async (data) => {
+			return await this.connections.testConnect(data.connection);
+		});
+
+		setTimeout(() => {
+			this.messageChannel.send('initialize', { connection: connectionToEdit });
+		}, 1000);
 	}
 
 	public static async render(
 		context: ExtensionContext,
-		connectionToEdit: SystemConnection,
-		connectionProvider: SystemConnectionProvider,
+		connectionToEdit: ConnectionData,
+		connections: ConnectionManager,
 	) {
 		let layout = (await vscode.commands.executeCommand(
 			'vscode.getEditorLayout',
@@ -90,7 +97,7 @@ export class EditConnectionPanel implements Disposable {
 				],
 			});
 		}
-		new EditConnectionPanel(connectionProvider, connectionToEdit, context);
+		new EditConnectionPanel(connections, connectionToEdit, context);
 	}
 
 	/**

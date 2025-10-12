@@ -1,6 +1,6 @@
-import { ConnectionProtocol, type SystemConnection } from 'core';
+import { ConnectionProtocol, type ConnectionData } from 'core';
+import type { ConnectionManager } from 'lib';
 import path from 'path';
-import type { SystemConnectionProvider } from 'adapters/connectionProvider';
 import {
 	EventEmitter,
 	type TreeDataProvider,
@@ -11,37 +11,37 @@ import {
 } from 'vscode';
 
 export class ConnectionTreeProvider
-	implements TreeDataProvider<SystemConnection>
+	implements TreeDataProvider<ConnectionData>
 {
-	private _onDidChangeTreeData: EventEmitter<
-		SystemConnection | undefined | null | void
-	> = new EventEmitter<SystemConnection | undefined | null | void>();
-	readonly onDidChangeTreeData: Event<
-		SystemConnection | undefined | null | void
-	> = this._onDidChangeTreeData.event;
+	private _onDidChangeTreeData = new EventEmitter<ConnectionData | undefined>();
+	readonly onDidChangeTreeData: Event<ConnectionData | undefined> =
+		this._onDidChangeTreeData.event;
 
 	constructor(
 		private context: ExtensionContext,
-		private connectionProvider: SystemConnectionProvider,
+		private connections: ConnectionManager,
 	) {
-		this.connectionProvider.onDidChangeSystems(() => {
-			this._onDidChangeTreeData.fire();
+		this.connections.onDidChangeConnection((_event) => {
+			this._onDidChangeTreeData.fire(undefined);
 		});
 	}
 
-	getTreeItem(element: SystemConnection): TreeItem {
+	getTreeItem(element: ConnectionData): TreeItem {
 		const treeItem = new TreeItem(element.name, TreeItemCollapsibleState.None);
 
 		treeItem.label = element.name.toUpperCase();
 		treeItem.tooltip = `Connection: ${element.name}`;
-		treeItem.contextValue = element.state ?? '';
 		treeItem.iconPath = path.join(
 			this.context.extensionPath,
 			'webviews',
 			'assets',
 			element.landscapeProviderUrl ? 'systemSynced.svg' : 'systemNoSync.svg',
 		);
-		treeItem.contextValue = element.state ?? '';
+		if (this.connections.getActive(element.systemId)) {
+			treeItem.contextValue = 'connected';
+		} else {
+			treeItem.contextValue = 'disconnected';
+		}
 
 		/// [Protocol - Client - language]
 		let descriptionString = '';
@@ -59,9 +59,9 @@ export class ConnectionTreeProvider
 		return treeItem;
 	}
 
-	getChildren(element?: SystemConnection): Thenable<SystemConnection[]> {
+	getChildren(element?: ConnectionData): Thenable<ConnectionData[]> {
 		if (!element) {
-			return Promise.resolve(this.connectionProvider.connections);
+			return Promise.resolve(this.connections.getAllData());
 		}
 		return Promise.resolve([]);
 	}

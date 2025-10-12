@@ -1,7 +1,7 @@
 /**
  * Core language client functionality, no vscode specific stuff.
  */
-import { spawn } from 'child_process';
+import child_process from 'child_process';
 import { connect, type Socket } from 'net';
 
 /**
@@ -93,7 +93,7 @@ async function spawnLanguageServer() {
 	let target = getLanguageServerPath();
 	console.log(`Spawning language server at ${target}..`);
 
-	const child = spawn(target, {
+	const child = child_process.spawn(target, {
 		detached: true,
 		stdio: 'ignore',
 		cwd: process.cwd(),

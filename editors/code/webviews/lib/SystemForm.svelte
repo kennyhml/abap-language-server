@@ -6,7 +6,7 @@
 	import LoadingIcon from '../assets/loading.svg';
 	import SystemAddedIcon from '../assets/systemAdded.svg';
 	import {
-		type SystemConnection,
+		type ConnectionData,
 		ConnectionType,
 		SecurityLevel,
 		isRfcConnection,
@@ -16,12 +16,12 @@
 	import VSCheckBox from './common/VSCheckBox.svelte';
 
 	type Props = {
-		systemData: SystemConnection;
+		systemData: ConnectionData;
 		onSubmit: (
-			system: SystemConnection,
+			system: ConnectionData,
 		) => Promise<{ success: boolean; message: string }>;
 		onTest: (
-			system: SystemConnection,
+			system: ConnectionData,
 		) => Promise<{ success: boolean; message: string }>;
 	};
 
@@ -67,7 +67,7 @@
 	 * the difference between connection types.
 	 * @param data
 	 */
-	function allRequiredFieldsFilled(system: SystemConnection) {
+	function allRequiredFieldsFilled(system: ConnectionData) {
 		if (
 			system.systemId.length === 0 ||
 			system.params.client.length === 0 ||

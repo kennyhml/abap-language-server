@@ -1,12 +1,13 @@
 <script lang="ts">
 	import {
-		type SystemConnection,
+		type ConnectionData,
 		type LandscapeSystem,
 		ConnectionProtocol,
 		DEFAULT_HTTP_SYSTEM,
 		DEFAULT_RFC_SYSTEM,
 		type ConnectionPanelMessages,
 		MessageChannel,
+		type ConnectionResult,
 	} from 'extension';
 
 	import { onMount } from 'svelte';
@@ -22,7 +23,7 @@
 
 	let selectedProtocol: ConnectionProtocol = $state(ConnectionProtocol.Http);
 	let landscapeSystems: LandscapeSystem[] = $state([]);
-	let systemData: SystemConnection = $state(DEFAULT_HTTP_SYSTEM);
+	let systemData: ConnectionData = $state(DEFAULT_HTTP_SYSTEM);
 
 	async function onRefreshLandscape() {
 		landscapeSystems = await getAvailableConnections();
@@ -33,15 +34,15 @@
 	}
 
 	function onConnectionSubmitted(
-		connection: SystemConnection,
-	): Promise<{ success: boolean; message: string }> {
-		return messageChannel.send('connectionSubmit', { connection });
+		connection: ConnectionData,
+	): Promise<ConnectionResult> {
+		return messageChannel.send('doAdd', { connection });
 	}
 
 	function onConnectionTestRequested(
-		connection: SystemConnection,
-	): Promise<{ success: boolean; message: string }> {
-		return messageChannel.send('connectionSubmit', { connection, test: true });
+		connection: ConnectionData,
+	): Promise<ConnectionResult> {
+		return messageChannel.send('doTest', { connection });
 	}
 
 	function onSelectionChange(system: LandscapeSystem) {

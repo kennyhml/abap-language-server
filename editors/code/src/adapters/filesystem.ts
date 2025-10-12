@@ -8,7 +8,6 @@ import {
 	type FileStat,
 	type FileSystemProvider,
 } from 'vscode';
-import type { SystemConnectionProvider } from './connectionProvider';
 import {
 	isFavorites,
 	newRootNode,
@@ -20,7 +19,8 @@ import {
 	type FilesystemNode,
 	toDisplayName,
 	toRealName,
-} from '../core/filesystem';
+} from 'core';
+import type { ConnectionManager } from 'lib/connection';
 
 export class VirtualFilesystem implements FileSystemProvider {
 	private root: RootNode;
@@ -28,18 +28,17 @@ export class VirtualFilesystem implements FileSystemProvider {
 	private _onDidChangeFile = new EventEmitter<FileChangeEvent[]>();
 	public readonly onDidChangeFile = this._onDidChangeFile.event;
 
-	constructor(private connectionProvider: SystemConnectionProvider) {
-		connectionProvider.onDidChangeSystems(() => {
+	constructor(private connections: ConnectionManager) {
+		connections.onDidChangeConnection(() => {
 			//todo: Refresh the filesystem somehow???
 			// do we even need this event here? the workspace now determines
 			// what folders are shown,
 		});
 
-		// Should we just load from the connection provider here? probably?
 		this.root = newRootNode();
-		this.root.children = connectionProvider.connections.map((conn) =>
-			newSystemRoot(conn.systemId),
-		);
+		this.root.children = connections
+			.getWorkspaceConnections()
+			.map((conn) => newSystemRoot(conn.systemId));
 	}
 
 	/**
@@ -137,15 +136,13 @@ export class VirtualFilesystem implements FileSystemProvider {
 		node: FilesystemNode,
 		system: string,
 	): Promise<FilesystemNode[]> {
-		let client = this.connectionProvider
-			.getConnectionClient(system)!
-			.getLanguageClient();
+		let client = this.connections.getActive(system)!.getLanguageClient();
 
 		if (isFavorites(node)) {
 			return [];
 		}
 
-		let result: { children: FilesystemNode[] } = await client.sendRequest(
+		let result: { children: FilesystemNode[] } = await client.invokeCustom(
 			'filesystem/expand',
 			{ node },
 		);
@@ -155,9 +152,7 @@ export class VirtualFilesystem implements FileSystemProvider {
 	}
 
 	private isInaccessibleSystem(node: FilesystemNode): boolean {
-		return (
-			isSystem(node) && !this.connectionProvider.getConnectionClient(node.name)
-		);
+		return isSystem(node) && !this.connections.getActive(node.name);
 	}
 
 	readFile(uri: Uri): Uint8Array {

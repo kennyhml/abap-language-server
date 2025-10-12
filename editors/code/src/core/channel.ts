@@ -1,7 +1,8 @@
 import type {
+	ConnectionData,
 	ConnectionProtocol,
+	ConnectionResult,
 	LandscapeSystem,
-	SystemConnection,
 } from './connection';
 
 export const generateInteractionId = () =>
@@ -112,16 +113,10 @@ export type ConnectionPanelMessages =
 			{ protocol: ConnectionProtocol },
 			LandscapeSystem[]
 	  >
-	| WebviewMessage<
-			'connectionSubmit',
-			{ connection: SystemConnection; test?: boolean },
-			{ success: boolean; message: string }
-	  >;
+	| WebviewMessage<'doTest', { connection: ConnectionData }, ConnectionResult>
+	| WebviewMessage<'doAdd', { connection: ConnectionData }, ConnectionResult>;
 
 export type EditConnectionMessages =
-	| WebviewMessage<
-			'doEdit',
-			{ connection: SystemConnection; test?: boolean },
-			{ success: boolean; message: string }
-	  >
-	| WebviewMessage<'initialize', { connection: SystemConnection }, void>;
+	| WebviewMessage<'doEdit', { connection: ConnectionData }, ConnectionResult>
+	| WebviewMessage<'doTest', { connection: ConnectionData }, ConnectionResult>
+	| WebviewMessage<'initialize', { connection: ConnectionData }, void>;

@@ -32,14 +32,6 @@ export const SecurityLevel = {
 	Authed: 'authed',
 } as const;
 
-/**
- * The current state of a {@link SystemConnection}.
- */
-export const ConnectionState = {
-	disconnected: 'disconnected',
-	connected: 'connected',
-} as const;
-
 export type ConnectionType =
 	(typeof ConnectionType)[keyof typeof ConnectionType];
 
@@ -47,9 +39,6 @@ export type ConnectionProtocol =
 	(typeof ConnectionProtocol)[keyof typeof ConnectionProtocol];
 
 export type SecurityLevel = (typeof SecurityLevel)[keyof typeof SecurityLevel];
-
-export type ConnectionState =
-	(typeof ConnectionState)[keyof typeof ConnectionState];
 
 type RfcBaseParams = {
 	protocol: typeof ConnectionProtocol.Rfc;
@@ -151,7 +140,7 @@ export type ConnectionParams = {
  * as user defined properties such as how the system should be displayed and kept
  * in sync with a landscape provider if existent.
  */
-export type SystemConnection = {
+export type ConnectionData = {
 	/** The name of the system connection in the system explorer, unique! */
 	name: string;
 
@@ -163,9 +152,6 @@ export type SystemConnection = {
 
 	/** The description of the system in the system explorer. */
 	description: string;
-
-	/** State of the connection, only available in non configurative contexts. */
-	state?: ConnectionState;
 
 	/** The URL of the landscape provider that defines this system if applicable. */
 	landscapeProviderUrl?: string;
@@ -213,7 +199,7 @@ export function isApplicationServer(
 	return params.connectionType === ConnectionType.CustomApplicationServer;
 }
 
-export const DEFAULT_HTTP_SYSTEM: SystemConnection = {
+export const DEFAULT_HTTP_SYSTEM: ConnectionData = {
 	systemId: '',
 	name: '',
 	description: '',
@@ -229,7 +215,7 @@ export const DEFAULT_HTTP_SYSTEM: SystemConnection = {
 	},
 };
 
-export const DEFAULT_RFC_SYSTEM: SystemConnection = {
+export const DEFAULT_RFC_SYSTEM: ConnectionData = {
 	systemId: '',
 	name: '',
 	description: '',

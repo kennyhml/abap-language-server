@@ -1,9 +1,9 @@
-import type { SystemConnectionProvider } from 'adapters/connectionProvider';
 import {
 	MessageChannel,
 	type ConnectionPanelMessages,
 	type LandscapeSystem,
 } from 'core';
+import type { ConnectionManager } from 'lib';
 import path from 'path';
 import type { Disposable, ExtensionContext, WebviewPanel } from 'vscode';
 import * as vscode from 'vscode';
@@ -16,7 +16,7 @@ export class AddConnectionPanel {
 	private static instance: AddConnectionPanel | undefined;
 
 	private constructor(
-		private connectionProvider: SystemConnectionProvider,
+		private connections: ConnectionManager,
 		context: ExtensionContext,
 	) {
 		this.panel = window.createWebviewPanel(
@@ -57,23 +57,28 @@ export class AddConnectionPanel {
 			return connections;
 		});
 
-		this.messageChannel.onDidReceive('connectionSubmit', async (data) => {
-			if (data.test) {
-				return await this.connectionProvider.testConnection(data.connection);
-			} else {
-				return await this.connectionProvider.addConnection(data.connection);
+		this.messageChannel.onDidReceive('doTest', async (data) => {
+			return await this.connections.testConnect(data.connection);
+		});
+
+		this.messageChannel.onDidReceive('doAdd', async (data) => {
+			try {
+				this.connections.addGlobalConnection(data.connection);
+				return { success: true, message: 'Connection added' };
+			} catch (err: any) {
+				return { success: false, message: err.message };
 			}
 		});
 	}
 
 	public static render(
 		context: ExtensionContext,
-		connectionProvider: SystemConnectionProvider,
+		connections: ConnectionManager,
 	) {
 		if (this.instance) {
 			this.instance.panel.reveal(ViewColumn.One);
 		} else {
-			this.instance = new AddConnectionPanel(connectionProvider, context);
+			this.instance = new AddConnectionPanel(connections, context);
 		}
 	}
 
