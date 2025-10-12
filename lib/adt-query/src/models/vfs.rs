@@ -6,6 +6,42 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
+#[derive(Debug, Eq, Clone, PartialEq, Deserialize, Serialize)]
+pub enum RepositoryObject {
+    #[serde(rename = "DEVC/K")]
+    Package,
+
+    #[serde(rename = "PROG/P")]
+    Program,
+
+    #[serde(rename = "PROG/I")]
+    Include,
+
+    #[serde(rename = "CLAS/OC")]
+    Class,
+
+    #[serde(rename = "INTF/OI")]
+    Interface,
+
+    #[serde(rename = "PINF/KI")]
+    PackageInterface,
+
+    #[serde(rename = "TRAN/T")]
+    Transaction,
+
+    #[serde(rename = "DOMA/DD")]
+    Domain,
+
+    #[serde(rename = "CUS0/IMG")]
+    ImgActivity,
+
+    #[serde(rename = "TABL/DT")]
+    DatabaseTable,
+
+    #[serde(untagged)]
+    Unknown(String),
+}
+
 /// Collection of possible `Facet` values with a custom variant.
 ///
 /// In the context of the Virtual Filesystem the facets serve
@@ -300,7 +336,7 @@ pub struct Object {
 
     /// Technical type of the object, e.g `PROG/P` or `CLAS/OC`
     #[serde(rename = "@type")]
-    pub kind: String,
+    pub kind: RepositoryObject,
 
     /// The uri of the object, generally this can be used to get information about the object
     #[serde(rename = "@uri")]
@@ -525,7 +561,11 @@ mod tests {
                             </vfs:virtualFoldersResult>"#;
         let result: VirtualFoldersResult = serde_xml_rs::from_str(plain).unwrap();
         assert_eq!(
-            result.objects.iter().filter(|o| o.kind == "PROG/P").count(),
+            result
+                .objects
+                .iter()
+                .filter(|o| o.kind == RepositoryObject::Program)
+                .count(),
             4,
             "Expected 4 PROG/P objects in the virtual folder result."
         );
