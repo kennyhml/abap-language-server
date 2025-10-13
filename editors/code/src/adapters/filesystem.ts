@@ -9,7 +9,6 @@ import {
 	type FileSystemProvider,
 } from 'vscode';
 import {
-	isFavorites,
 	newRootNode,
 	walk,
 	isExpandable,
@@ -19,6 +18,7 @@ import {
 	type FilesystemNode,
 	toDisplayName,
 	toRealName,
+	isObject,
 } from 'core';
 import type { ConnectionManager } from 'lib/connection';
 
@@ -73,7 +73,7 @@ export class VirtualFilesystem implements FileSystemProvider {
 	 */
 	async readDirectory(uri: Uri): Promise<[string, FileType][]> {
 		const node = walk(this.root, this.breakIntoParts(uri));
-		if (!node) {
+		if (!node || isObject(node)) {
 			throw FileSystemError.FileNotFound(uri);
 		}
 
@@ -137,10 +137,6 @@ export class VirtualFilesystem implements FileSystemProvider {
 		system: string,
 	): Promise<FilesystemNode[]> {
 		let client = this.connections.getActive(system)!.getLanguageClient();
-
-		if (isFavorites(node)) {
-			return [];
-		}
 
 		let result: { children: FilesystemNode[] } = await client.invokeCustom(
 			'filesystem/expand',

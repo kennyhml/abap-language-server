@@ -40,17 +40,14 @@ export const NodeType = {
 	 */
 	Root: 'root',
 
-	/**
-	 * The system root node, while this is technically also a 'grouping', it needs to
-	 * be treated differently because its name cant be known at compile time and it also
-	 * has a constant set of children.
-	 */
 	System: 'system',
 
 	/**
 	 * A {@link VirtualGrouping virtual grouping} to organize related objects.
 	 */
 	Group: 'group',
+
+	Facet: 'facet',
 
 	/**
 	 * An actual {@link ObjectType repository object} such as a package or a class.
@@ -63,20 +60,6 @@ export const NodeType = {
  */
 export type NodeType = (typeof NodeType)[keyof typeof NodeType];
 
-export const VirtualGrouping = {
-	Root: 'Root',
-	Local: 'Local Objects',
-	Favorites: 'Favorite Objects',
-	System: 'System Library',
-} as const;
-
-/**
- * Valid groups to organize objects in the filesystem, must be known at compile
- * as certain folder icons are also determined based on predefined folder names.
- */
-export type VirtualGrouping =
-	(typeof VirtualGrouping)[keyof typeof VirtualGrouping];
-
 /**
  * Represents a single node in the filsystem tree.
  *
@@ -85,66 +68,80 @@ export type VirtualGrouping =
  *
  * To access the children of the node, you must first expand it with **`filesystem/expand`**.
  */
-export type FilesystemNode = ObjectNode | SystemNode | GroupNode | RootNode;
+export type FilesystemNode =
+	| RepositoryObjectNode
+	| GroupNode
+	| RootNode
+	| SystemNode
+	| FacetNode;
 
 const UNICODE_FAKE_FORWARD_SLASH = ' ⁄ ';
 
 /**
- * Base properties for all filesystem nodes.
- */
-interface BaseNode {
-	/**
-	 * The display name of the node in the filsystem. The source of this
-	 * name differs based on the concrete node type.
-	 */
-	name: string;
-
-	/**
-	 * The children of the node, in the case of a package, this could be
-	 * other packages or the development objects directly assigned to it.
-	 */
-	children?: FilesystemNode[];
-}
-
-/**
  * A node representing a repository object, e.g. a package or a class.
  */
-export interface ObjectNode extends BaseNode {
+export type RepositoryObjectNode = {
 	kind: typeof NodeType.RepositoryObject;
+
+	name: string;
 
 	/**
 	 * The type of repository object such as `Package` or `Class`..
 	 *
 	 * Determines whether it can be expanded, how it will be displayed and opened.
 	 */
-	object: RepositoryObject;
-}
+	objectKind: RepositoryObject;
+};
 
 /**
  * A node representing a virtual grouping of related nodes, this abstraction only
  * exists in the filesystem and not in any true organizational means on the system.
  */
-export interface GroupNode extends BaseNode {
+export type GroupNode = {
 	kind: typeof NodeType.Group;
 
-	name: VirtualGrouping;
-}
+	name: string;
+
+	technicalName: string;
+
+	children?: FilesystemNode[];
+};
+
+export type FacetNode = {
+	kind: typeof NodeType.Facet;
+
+	name: string;
+
+	technicalName: string;
+
+	package?: string;
+
+	children?: FilesystemNode[];
+
+	facet: string;
+};
 
 /**
  * A node representing the root of the filesystem.
  */
-export interface SystemNode extends BaseNode {
-	kind: typeof NodeType.System;
-}
-
-/**
- * A node representing the root of the filesystem.
- */
-export interface RootNode extends BaseNode {
+export type RootNode = {
 	kind: typeof NodeType.Root;
 
+	name: '';
+
 	children?: SystemNode[];
-}
+};
+
+/**
+ * A node representing the root of the filesystem.
+ */
+export type SystemNode = {
+	kind: typeof NodeType.System;
+
+	name: string;
+
+	children?: FilesystemNode[];
+};
 
 /**
  * Constructs a new root filesystem node for the given system name.
@@ -190,30 +187,14 @@ export function isGroup(node: FilesystemNode): node is GroupNode {
 	return node.kind === NodeType.Group;
 }
 
-/**
- * @returns Whether the given node is the {@link RootNode}.
- */
-export function isLocalObjects(
-	node: FilesystemNode,
-): node is GroupNode & { name: typeof VirtualGrouping.Local } {
-	return node.kind === NodeType.Group && node.name === VirtualGrouping.Local;
-}
-
-/**
- * @returns Whether the given node is the {@link RootNode}.
- */
-export function isFavorites(
-	node: FilesystemNode,
-): node is GroupNode & { name: typeof VirtualGrouping.Favorites } {
-	return (
-		node.kind === NodeType.Group && node.name === VirtualGrouping.Favorites
-	);
+export function isFacet(node: FilesystemNode): node is FacetNode {
+	return node.kind === NodeType.Facet;
 }
 
 /**
  * @returns Whether the given node is an {@link ObjectNode}.
  */
-export function isObject(node: FilesystemNode): node is ObjectNode {
+export function isObject(node: FilesystemNode): node is RepositoryObjectNode {
 	return node.kind === NodeType.RepositoryObject;
 }
 
@@ -223,7 +204,7 @@ export function walk(
 ): FilesystemNode | undefined {
 	let curr: FilesystemNode | undefined = node;
 	for (const segment of path) {
-		if (!curr) {
+		if (!curr || isObject(curr)) {
 			break;
 		}
 		curr = curr?.children?.find((node) => node.name === segment);
@@ -232,19 +213,14 @@ export function walk(
 }
 
 export function isExpandable(node: FilesystemNode) {
-	return isPackage(node) || isGroup(node) || isSystem(node);
+	return isPackage(node) || isGroup(node) || isSystem(node) || isFacet(node);
 }
 
 /**
  * @returns Whether the given node is a {@link RepositoryObject.Package package}.
  */
-export function isPackage(
-	node: FilesystemNode,
-): node is ObjectNode & { object: typeof RepositoryObject.Package } {
-	return (
-		node.kind === NodeType.RepositoryObject &&
-		node.object === RepositoryObject.Package
-	);
+export function isPackage(node: FilesystemNode): node is FacetNode {
+	return node.kind === NodeType.Facet && node.facet === 'PACKAGE';
 }
 
 /**
@@ -301,7 +277,7 @@ function objectSuffix(node: FilesystemNode): string {
 	if (isObject(node) && !isPackage(node)) {
 		// TODO: Using the first 4 characters of the object name isnt ideal, alot of
 		// different objects share it (e.g) PROG/P = program, PROG/I = Include, both are PROG.
-		return '.' + node.object.substring(0, 4).toLowerCase();
+		return '.' + node.objectKind.substring(0, 4).toLowerCase();
 	}
 	return '';
 }

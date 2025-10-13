@@ -42,6 +42,89 @@ pub enum RepositoryObject {
     Unknown(String),
 }
 
+/// Groups to categorize objects by serving as a [Facet].
+///
+/// Can be expanded into the individual repository types.
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Group {
+    #[serde(rename = "BCT")]
+    BusinessConfigManagement,
+
+    #[serde(rename = "UC_OBJECT_TYPE_GROUP")]
+    Connectivity,
+
+    #[serde(rename = "APSIAM")]
+    Authorizations,
+
+    BspLibrary,
+
+    RapServices,
+
+    FioriUi,
+
+    SourceLibrary,
+
+    Dictionary,
+
+    CoreDataServices,
+
+    TextObjects,
+
+    Enhancements,
+
+    PackageInterfaces,
+
+    Transactions,
+
+    Other,
+
+    #[serde(untagged)]
+    Unknown(String),
+}
+
+impl Group {
+    pub fn display_name(&self) -> Cow<'static, str> {
+        match self {
+            Self::Dictionary => "Dictionary".into(),
+            Self::CoreDataServices => "Core Data Services".into(),
+            Self::Enhancements => "Enhancements".into(),
+            Self::BusinessConfigManagement => "Business Configuration Management".into(),
+            Self::Connectivity => "Connectivity".into(),
+            Self::BspLibrary => "Business Configuration Management".into(),
+            Self::RapServices => "Business Services".into(),
+            Self::FioriUi => "Fiori User Interfaces".into(),
+            Self::SourceLibrary => "Source Code Library".into(),
+            Self::TextObjects => "Texts".into(),
+            Self::PackageInterfaces => "Package Interfaces".into(),
+            Self::Transactions => "Transactions".into(),
+            Self::Other => "Other".into(),
+            Self::Authorizations => "Authorizations".into(),
+            Self::Unknown(s) => Cow::Owned(s.into()),
+        }
+    }
+
+    pub fn technical_name(&self) -> Cow<'_, str> {
+        match self {
+            Self::BusinessConfigManagement => "BCT".into(),
+            Self::Connectivity => "UC_OBJECT_TYPE_GROUP".into(),
+            Self::Authorizations => "APSIAM".into(),
+            Self::BspLibrary => "BSP_LIBRARY".into(),
+            Self::RapServices => "RAP_SERVICES".into(),
+            Self::FioriUi => "FIORI_UI".into(),
+            Self::SourceLibrary => "SOURCE_LIBRARY".into(),
+            Self::Dictionary => "DICTIONARY".into(),
+            Self::CoreDataServices => "CORE_DATA_SERVICES".into(),
+            Self::TextObjects => "TEXT_OBJECTS".into(),
+            Self::Enhancements => "ENHANCEMENTS".into(),
+            Self::PackageInterfaces => "PACKAGE_INTERFACES".into(),
+            Self::Transactions => "TRANSACTIONS".into(),
+            Self::Other => "OTHER".into(),
+            Self::Unknown(s) => s.into(),
+        }
+    }
+}
+
 /// Collection of possible `Facet` values with a custom variant.
 ///
 /// In the context of the Virtual Filesystem the facets serve
@@ -112,6 +195,14 @@ impl Facet {
             Facet::Version => "VERSION".into(),
             Facet::Docu => "DOCU".into(),
             Facet::Custom(val) => Cow::Owned(val.into()),
+        }
+    }
+
+    pub fn expands_into(&self) -> Option<Self> {
+        match self {
+            Facet::Package | Facet::Owner => Some(Facet::Group),
+            Facet::Group => Some(Facet::Type),
+            _ => None,
         }
     }
 }

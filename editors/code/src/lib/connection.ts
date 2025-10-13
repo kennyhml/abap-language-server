@@ -110,7 +110,7 @@ export class ConnectionManager {
 	}
 
 	public getActiveWorkspaceConnections(): Connection[] {
-		return [];
+		return this.activeConnections;
 	}
 
 	/**

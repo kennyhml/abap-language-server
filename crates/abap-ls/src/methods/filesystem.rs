@@ -12,58 +12,84 @@ use tower_lsp::{
 };
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NodeGrouping {
-    #[serde(rename = "Local Objects")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum NodeGroup {
     LocalObjects,
-    #[serde(rename = "System Library")]
+
     SystemLibrary,
-    #[serde(rename = "Favorites")]
+
     Favorites,
+}
+
+impl NodeGroup {
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::LocalObjects => "Local Objects",
+            Self::SystemLibrary => "System Library",
+            Self::Favorites => "Favorites",
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GroupNode {
+    name: String,
+
+    id: NodeGroup,
+
+    /// The children of the group node, i.e the nodes it groups together.
+    children: Option<Vec<FilesystemNode>>,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FacetNode {
+    /// The kind of facet, see [Facet]
+    facet: Facet,
+
+    /// The display name of the facet.
+    ///
+    /// In the case of a `TYPE` facet, this could, for example, be `Classes` or `Programs`..
+    name: String,
+
+    /// The technical name of the facet.
+    ///
+    /// In the case of a `TYPE` facet, this could, for example, be `CLAS` or `PROG`..
+    technical_name: String,
+
+    package: Option<String>,
+
+    children: Option<Vec<FilesystemNode>>,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RepositoryObjectNode {
+    /// The name of the repository object
+    name: String,
+
+    /// The kind of object, e.g `PROG/P`, etc..
+    object_kind: RepositoryObject,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum FilesystemNode {
-    // The node of a system. To the server, this is the root node, since it builds
-    // filesystem trees only for individual systems. Clients may need to have a higher
-    // order root node that expands to multiple systems.
-    System {
-        /// The `SID` (System ID) of the system
-        name: String,
-        /// The children of the system node
-        children: Option<Vec<FilesystemNode>>,
-    },
+    System,
+    Group(GroupNode),
+    Facet(FacetNode),
+    RepositoryObject(RepositoryObjectNode),
+}
 
-    /// A virtual "folder" that groups related objects together, this abstraction exists
-    /// only in the filetrees, not in the true organization on the server. This is mainly
-    /// needed because the sheer amount of objects is too much to display immediately under
-    /// each node. It also makes it so we can fetch the nodes incrementally based on what
-    /// node type is currently needed and avoid needlessly long load times.
-    Group {
-        /// The (display) name of the grouping, e.g `"Local Objects"`
-        name: NodeGrouping,
-
-        /// In the case of package content groupings such as `"Source"`, the name of the
-        /// package the grouping is part of. All groupings that dont have a unique position
-        /// in the system, such as the Local Object or System Library, need to have this set.
-        package: Option<String>,
-
-        /// The children of the group node, i.e the nodes it groups together.
-        children: Option<Vec<FilesystemNode>>,
-    },
-
-    /// An actual repository object like a package, a class, an interface, etc..
-    RepositoryObject {
-        /// The name of the repository object
-        name: String,
-
-        /// The kind of object, e.g `DEVC/k`, `PROG/P`, etc..
-        object: RepositoryObject,
-
-        /// The children of the node. In the case of a package, this may be the other packages
-        /// or objects assigned to it.
-        children: Option<Vec<FilesystemNode>>,
-    },
+impl FilesystemNode {
+    pub fn group(group: NodeGroup) -> Self {
+        FilesystemNode::Group(GroupNode {
+            name: group.display_name().into(),
+            id: group,
+            children: None,
+        })
+    }
 }
 
 /// Parameters for **`filesystem/expand`**
@@ -86,59 +112,25 @@ pub struct ExpandResult {
 
 impl Backend {
     pub async fn expand(&self, params: ExpandParams) -> Result<ExpandResult> {
-        let mut query = RepositoryContentBuilder::default();
-        match params.node {
-            // System Node always expands into the same groups.
-            FilesystemNode::System { name, children } => {
+        let expand = match &params.node {
+            FilesystemNode::System => {
                 return Ok(ExpandResult {
                     children: vec![
-                        FilesystemNode::Group {
-                            name: NodeGrouping::LocalObjects,
-                            package: None,
-                            children: None,
-                        },
-                        FilesystemNode::Group {
-                            name: NodeGrouping::Favorites,
-                            package: None,
-                            children: None,
-                        },
-                        FilesystemNode::Group {
-                            name: NodeGrouping::SystemLibrary,
-                            package: None,
-                            children: None,
-                        },
+                        FilesystemNode::group(NodeGroup::LocalObjects),
+                        FilesystemNode::group(NodeGroup::Favorites),
+                        FilesystemNode::group(NodeGroup::SystemLibrary),
                     ],
                 });
             }
-            FilesystemNode::Group {
-                name,
-                package,
-                children,
-            } => match name {
-                NodeGrouping::LocalObjects => {
-                    query.push_preselection(Preselection::new(Facet::Package, "$TMP"));
-                    query.push_preselection(Preselection::new(Facet::Owner, "DEVELOPER"));
-                }
-                NodeGrouping::Favorites => {
-                    unimplemented!()
-                }
-                NodeGrouping::SystemLibrary => {
-                    query.order(vec![Facet::Package].into());
-                }
-            },
-            FilesystemNode::RepositoryObject {
-                name,
-                object,
-                children,
-            } => match object {
-                RepositoryObject::Package => {
-                    query.push_preselection(Preselection::new(Facet::Package, name));
-                }
-                _ => unimplemented!(), // cant expand other shit
-            },
-        }
+            FilesystemNode::RepositoryObject { .. } => {
+                // Cannot expand objects
+                return Ok(ExpandResult { children: vec![] });
+            }
+            FilesystemNode::Group(group) => self.build_group_expander(group).await,
+            FilesystemNode::Facet(facet) => self.build_facet_expander(facet).await,
+        };
 
-        let query = query.build().map_err(|e| {
+        let query = expand.build().map_err(|e| {
             let mut err = Error::internal_error();
             err.message = e.to_string().into();
             err
@@ -155,21 +147,67 @@ impl Backend {
 
         let mut nodes: Vec<FilesystemNode> = Vec::new();
 
-        //TODO: Move instead of cloning
         for obj in &result.body().objects {
-            nodes.push(FilesystemNode::RepositoryObject {
+            nodes.push(FilesystemNode::RepositoryObject(RepositoryObjectNode {
                 name: obj.name.clone(),
-                object: obj.kind.clone(),
-                children: None,
-            });
+                object_kind: obj.kind.clone(),
+            }));
         }
+
+        let package = match params.node {
+            FilesystemNode::Facet(facet) => facet.package,
+            _ => None,
+        };
+
+        // Either packages or groups / types
         for obj in &result.body().folders {
-            nodes.push(FilesystemNode::RepositoryObject {
-                name: obj.name.clone(),
-                object: RepositoryObject::Package,
+            nodes.push(FilesystemNode::Facet(FacetNode {
+                facet: obj.facet.clone(),
+                name: obj.display_name.clone(),
+                technical_name: obj.name.clone(),
+                package: package.clone(),
                 children: None,
-            });
+            }));
         }
         return Ok(ExpandResult { children: nodes });
+    }
+
+    async fn build_group_expander(&self, node: &GroupNode) -> RepositoryContentBuilder {
+        let mut query = RepositoryContentBuilder::default();
+        match &node.id {
+            NodeGroup::Favorites => {
+                query.push_preselection(Preselection::new(Facet::Favorites, "$DEVELOPER"));
+            }
+            NodeGroup::LocalObjects => {
+                //TODO: Need to know the names of the developers the user has added local objects of
+                query.push_preselection(Preselection::new(Facet::Package, "$TMP"));
+                query.push_preselection(Preselection::new(Facet::Owner, "DEVELOPER"));
+                query.order(vec![Facet::Owner].into());
+            }
+            NodeGroup::SystemLibrary => {
+                query.order(vec![Facet::Package].into());
+            }
+        }
+        query
+    }
+
+    async fn build_facet_expander<'a>(&self, node: &'a FacetNode) -> RepositoryContentBuilder<'a> {
+        let mut query = RepositoryContentBuilder::default();
+
+        // Push the facet itself as preselection
+        query.push_preselection(Preselection::new(node.facet.clone(), &node.technical_name));
+
+        // Also add package restrictions for non package facets.
+        if !matches!(node.facet, Facet::Package) {
+            if let Some(pkg) = &node.package {
+                query.push_preselection(Preselection::new(Facet::Package, pkg));
+            }
+        }
+
+        if let Some(expand_into) = node.facet.expands_into() {
+            query.order(vec![expand_into].into());
+        }
+
+        query
     }
 }
