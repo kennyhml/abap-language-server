@@ -1,36 +1,3 @@
-export const RepositoryObject = {
-	/**
-	 * Package, also referred to as `DEVC` or `devclass`.
-	 */
-	Package: 'DEVC/K',
-
-	/**
-	 * Executable Program
-	 */
-	Program: 'PROG/P',
-
-	/**
-	 * Program Include, also referred to as `INCL`
-	 */
-	Include: 'PROG/I',
-
-	/**
-	 * Interface (OOP Context)
-	 */
-	Interface: 'INTF/OI',
-
-	/**
-	 * Class (OOP Context)
-	 */
-	Class: 'CLAS/OC',
-} as const;
-
-/**
- * Type of a repository object
- */
-export type RepositoryObject =
-	(typeof RepositoryObject)[keyof typeof RepositoryObject];
-
 /**
  * Structures the different functionality / implication of a node in the filesystem.
  */
@@ -90,7 +57,7 @@ export type RepositoryObjectNode = {
 	 *
 	 * Determines whether it can be expanded, how it will be displayed and opened.
 	 */
-	objectKind: RepositoryObject;
+	objectKind: String;
 };
 
 /**

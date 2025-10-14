@@ -1,4 +1,4 @@
-use crate::backend::{Backend, SystemConnection};
+use crate::backend::{Backend, ClientContext};
 use adt_query::{
     ClientBuilder, ConnectionParameters, HttpConnectionBuilder, auth::Credentials,
     dispatch::StatelessDispatch,
@@ -63,7 +63,7 @@ pub enum ConnectResult {
 
 impl Backend {
     pub async fn connect(&self, params: ConnectParams) -> Result<ConnectResult> {
-        if self.client().await.ok().is_some() {
+        if self.context().await.ok().is_some() {
             return Ok(ConnectResult::AlreadyConnected);
         }
 
@@ -91,7 +91,9 @@ impl Backend {
             _ => {}
         };
 
-        self.once.set(client).unwrap();
+        self.client_ctx_once
+            .set(ClientContext::new(client))
+            .unwrap();
         // self.set_connection(SystemConnection::new(client)).await;
         Ok(ConnectResult::Created)
     }

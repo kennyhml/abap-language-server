@@ -8,17 +8,18 @@ use tower_lsp::{
 
 pub type AdtClient = adt_query::Client<reqwest::Client>;
 
-/// A connection to a system, holds the adt connector, open files,
-
+/// Holds all context of a client/system connection, established through a call
+/// to `connection/connect`. The data may persist for a little while even when
+/// the client has disconnect in anticipation of having to reserve it shortly after.
 #[derive(Debug)]
-pub struct SystemConnection {
-    // context: open files, locks, local file buffers
-    pub adt: AdtClient,
+pub struct ClientContext {
+    // Client to communicate with the ADT backend
+    pub adt_client: AdtClient,
 }
 
-impl SystemConnection {
-    pub fn new(adt: AdtClient) -> Self {
-        Self { adt }
+impl ClientContext {
+    pub fn new(adt_client: AdtClient) -> Self {
+        Self { adt_client }
     }
 }
 
@@ -26,19 +27,23 @@ impl SystemConnection {
 pub struct Backend {
     pub client: LspClient,
 
-    pub once: OnceCell<AdtClient>,
+    pub client_ctx_once: OnceCell<ClientContext>,
 }
 
 impl Backend {
     pub fn new(client: LspClient) -> Self {
         return Self {
             client,
-            once: OnceCell::new(),
+            client_ctx_once: OnceCell::new(),
         };
     }
 
-    pub async fn client(&self) -> Result<&AdtClient> {
-        self.once.get().ok_or(Error::internal_error())
+    pub fn client(&self) -> &LspClient {
+        &self.client
+    }
+
+    pub async fn context(&self) -> Result<&ClientContext> {
+        self.client_ctx_once.get().ok_or(Error::internal_error())
     }
 }
 
