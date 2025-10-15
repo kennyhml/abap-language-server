@@ -1793,6 +1793,7 @@ version = "0.1.0"
 dependencies = [
  "adt-query",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

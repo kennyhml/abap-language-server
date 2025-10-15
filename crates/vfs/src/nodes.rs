@@ -2,12 +2,13 @@ use adt_query::models::vfs::{Facet, RepositoryObject};
 use serde::{Deserialize, Serialize};
 
 pub trait NodeDetail {
-    type Facet: Default;
-    type Group: Default;
+    type Facet: Default + std::fmt::Debug;
+    type Group: Default + std::fmt::Debug;
 }
 
-#[derive(Default)]
-pub struct External {}
+pub type External = ();
+
+#[derive(Default, Debug)]
 pub struct Internal {}
 
 impl NodeDetail for External {
@@ -98,7 +99,7 @@ impl PartialEq<GroupNode<GroupInternal>> for GroupNode<External> {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct GroupInternal {
     /// The children of the group node, i.e the nodes it groups together.
     ///
@@ -156,7 +157,7 @@ impl PartialEq<FacetNode<External>> for FacetNode<FacetInternal> {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct FacetInternal {
     /// The children of the group node, i.e the nodes it groups together.
     ///
@@ -199,4 +200,39 @@ pub enum Group {
 
     /// Categorizes nodes which the user has explicitly favorited.
     Favorites,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn internal_group_serializes_without_detail() {
+        let node = FilesystemNode::<Internal>::Group(GroupNode {
+            name: "Test123".into(),
+            group: Group::Favorites,
+            detail: GroupInternal { children: None },
+        });
+
+        let result = serde_json::to_string(&node).unwrap();
+        assert_eq!(
+            result,
+            r#"{"kind":"group","name":"Test123","group":"FAVORITES"}"#
+        );
+    }
+
+    #[test]
+    fn deserializes_external_group() {
+        let content = r#"{"kind":"group","name":"Test123","group":"FAVORITES"}"#;
+
+        let node: FilesystemNode<External> = serde_json::from_str(&content).unwrap();
+        assert_eq!(
+            node,
+            FilesystemNode::<External>::Group(GroupNode {
+                name: "Test123".into(),
+                group: Group::Favorites,
+                detail: ()
+            })
+        )
+    }
 }
