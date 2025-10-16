@@ -1,21 +1,34 @@
 use std::collections::HashMap;
 
-use crate::nodes::{External, FilesystemNode, Internal};
+use adt_query::RequestDispatch;
+
+use crate::nodes::{External, Group, GroupNode, Internal, Node};
 
 /// Represents a filesystem as tree of Nodes
 pub struct VirtualFileTree {
-    root: FilesystemNode<Internal>,
+    root: Node<Internal>,
 
     /// An additional index mapping package names to their nodes
-    by_package: HashMap<String, FilesystemNode<Internal>>,
+    by_package: HashMap<String, Node<Internal>>,
 }
 
 impl VirtualFileTree {
     // Expands the given node
-    pub fn expand(
-        &self,
-        node: &FilesystemNode<Internal>,
-    ) -> Option<&Vec<FilesystemNode<Internal>>> {
+    pub async fn expand<T>(&mut self, node: &mut Node<Internal>, client: adt_query::Client<T>)
+    where
+        T: RequestDispatch,
+    {
+        // Impossible to expand repository objects
+        if let Node::RepositoryObject(_) = node {
+            return;
+        }
+
+        // First check whether it is a node that can be expanded statically, i.e
+        // without making a request to the server because it expands into fixed nodes.
+        if let Some(children) = try_expand_static(node) {
+            node.assign(Some(children));
+        }
+
         todo!()
     }
 
@@ -23,11 +36,11 @@ impl VirtualFileTree {
     ///
     /// While the input is a node just like the output, the input is typically a deserialized
     /// variant which doesnt actually exist in the file tree and is more of a copy of the nodes data.
-    pub fn lookup(&self, node: &FilesystemNode<External>) -> Option<&FilesystemNode<Internal>> {
+    pub fn lookup(&self, node: &Node<External>) -> Option<&Node<Internal>> {
         fn dfs<'a>(
-            curr: &'a FilesystemNode<Internal>,
-            target: &FilesystemNode<External>,
-        ) -> Option<&'a FilesystemNode<Internal>> {
+            curr: &'a Node<Internal>,
+            target: &Node<External>,
+        ) -> Option<&'a Node<Internal>> {
             if curr == target {
                 return Some(curr);
             }
@@ -41,7 +54,7 @@ impl VirtualFileTree {
 
         // If we know the package this node is part of we can possibly optimize lookup
         let package = match node {
-            FilesystemNode::Facet(f) => f.package.as_ref(),
+            Node::Facet(f) => f.package.as_ref(),
             _ => None,
         };
 
@@ -51,5 +64,19 @@ impl VirtualFileTree {
             }
         }
         dfs(&self.root, node)
+    }
+}
+
+fn try_expand_static(node: &Node<Internal>) -> Option<Vec<Node<Internal>>> {
+    match node {
+        Node::Group(GroupNode {
+            group: Group::System,
+            ..
+        }) => Some(vec![
+            Node::Group(GroupNode::new(Group::LocalObjects)),
+            Node::Group(GroupNode::new(Group::SystemLibrary)),
+            Node::Group(GroupNode::new(Group::Favorites)),
+        ]),
+        _ => None,
     }
 }

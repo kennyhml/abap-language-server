@@ -1,19 +1,31 @@
+//! Provides definitions for the different nodes located in the virtual filesystem.
 use adt_query::models::vfs::{Facet, RepositoryObject};
 use serde::{Deserialize, Serialize};
 
+/// Defines the level of detail for nodes in the virtual filesystem.
+///
+/// This enables the __`FilesystemNode`__ to support different representations of nodes
+/// for internal use (e.g. with children and metadata) and external use (e.g. for
+/// serialization to clients).
+///
+/// ## Purposes
+/// - **External**: Allows nodes to be serialized with minimal data for client-server
+///   communication, ensuring clients have all the information they need to render and ask
+///   about more information regarding the specific node.
+/// - **Internal**: Supports additional details, like child nodes, for server-side
+///   processing, tree navigation and optimizing expand queries.
 pub trait NodeDetail {
     type Facet: Default + std::fmt::Debug;
     type Group: Default + std::fmt::Debug;
 }
 
-pub type External = ();
-
 #[derive(Default, Debug)]
 pub struct Internal {}
+pub type External = ();
 
 impl NodeDetail for External {
-    type Facet = External;
-    type Group = External;
+    type Facet = ();
+    type Group = ();
 }
 
 impl NodeDetail for Internal {
@@ -26,7 +38,7 @@ impl NodeDetail for Internal {
 /// The implications, purpose and expansion details depends on the variant.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
-pub enum FilesystemNode<T: NodeDetail> {
+pub enum Node<T: NodeDetail> {
     /// A, possibly custom, grouping for organizational purposes.
     Group(GroupNode<T::Group>),
 
@@ -42,31 +54,38 @@ pub enum FilesystemNode<T: NodeDetail> {
     RepositoryObject(RepositoryObjectNode),
 }
 
-impl FilesystemNode<Internal> {
-    pub fn children(&self) -> Option<&Vec<FilesystemNode<Internal>>> {
+impl Node<Internal> {
+    pub fn children(&self) -> Option<&Vec<Node<Internal>>> {
         match self {
-            FilesystemNode::Facet(f) => f.detail.children.as_ref(),
-            FilesystemNode::Group(g) => g.detail.children.as_ref(),
-            FilesystemNode::RepositoryObject(..) => None,
+            Node::Facet(f) => f.detail.children.as_ref(),
+            Node::Group(g) => g.detail.children.as_ref(),
+            Node::RepositoryObject(..) => None,
         }
+    }
+
+    pub fn assign(&mut self, children: Option<Vec<Node<Internal>>>) {
+        let arr = match self {
+            Node::Facet(f) => &mut f.detail.children,
+            Node::Group(g) => &mut g.detail.children,
+            _ => return,
+        };
+        *arr = children;
     }
 }
 
-impl PartialEq<FilesystemNode<Internal>> for FilesystemNode<External> {
-    fn eq(&self, other: &FilesystemNode<Internal>) -> bool {
+impl PartialEq<Node<Internal>> for Node<External> {
+    fn eq(&self, other: &Node<Internal>) -> bool {
         match (self, other) {
-            (FilesystemNode::Group(g1), FilesystemNode::Group(g2)) => g1 == g2,
-            (FilesystemNode::Facet(f1), FilesystemNode::Facet(f2)) => f1 == f2,
-            (FilesystemNode::RepositoryObject(r1), FilesystemNode::RepositoryObject(r2)) => {
-                r1 == r2
-            }
+            (Node::Group(g1), Node::Group(g2)) => g1 == g2,
+            (Node::Facet(f1), Node::Facet(f2)) => f1 == f2,
+            (Node::RepositoryObject(r1), Node::RepositoryObject(r2)) => r1 == r2,
             _ => false,
         }
     }
 }
 
-impl PartialEq<FilesystemNode<External>> for FilesystemNode<Internal> {
-    fn eq(&self, other: &FilesystemNode<External>) -> bool {
+impl PartialEq<Node<External>> for Node<Internal> {
+    fn eq(&self, other: &Node<External>) -> bool {
         other == self
     }
 }
@@ -78,13 +97,23 @@ impl PartialEq<FilesystemNode<External>> for FilesystemNode<Internal> {
 #[serde(rename_all = "camelCase")]
 pub struct GroupNode<T> {
     /// The display name of the group in the filesystem.
-    name: String,
+    pub name: String,
 
     /// The technical definition of the group.
-    group: Group,
+    pub group: Group,
 
     #[serde(skip)]
     detail: T,
+}
+
+impl GroupNode<GroupInternal> {
+    pub fn new(group: Group) -> Self {
+        Self {
+            name: group.display_name().into(),
+            group,
+            detail: GroupInternal { children: None },
+        }
+    }
 }
 
 impl PartialEq<GroupNode<External>> for GroupNode<GroupInternal> {
@@ -105,7 +134,7 @@ pub struct GroupInternal {
     ///
     /// Not included in serialization as we never send more than a layer of children
     /// per request from the client (one expand only).
-    children: Option<Vec<FilesystemNode<Internal>>>,
+    children: Option<Vec<Node<Internal>>>,
 }
 
 /// Represents a facet node in the fileystem.
@@ -163,7 +192,7 @@ pub struct FacetInternal {
     ///
     /// Not included in serialization as we never send more than a layer of children
     /// per request from the client (one expand only).
-    pub children: Option<Vec<FilesystemNode<Internal>>>,
+    pub children: Option<Vec<Node<Internal>>>,
 
     /// Whether this node has child facets of the same kind. This is typically the case with
     /// packages that contain sub-packages. Since packages and other facets need to be fetched
@@ -202,13 +231,24 @@ pub enum Group {
     Favorites,
 }
 
+impl Group {
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::System => "",
+            Self::LocalObjects => "Local Objects",
+            Self::SystemLibrary => "System Library",
+            Self::Favorites => "Favorite Objects",
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn internal_group_serializes_without_detail() {
-        let node = FilesystemNode::<Internal>::Group(GroupNode {
+        let node = Node::<Internal>::Group(GroupNode {
             name: "Test123".into(),
             group: Group::Favorites,
             detail: GroupInternal { children: None },
@@ -225,10 +265,10 @@ mod tests {
     fn deserializes_external_group() {
         let content = r#"{"kind":"group","name":"Test123","group":"FAVORITES"}"#;
 
-        let node: FilesystemNode<External> = serde_json::from_str(&content).unwrap();
+        let node: Node<External> = serde_json::from_str(&content).unwrap();
         assert_eq!(
             node,
-            FilesystemNode::<External>::Group(GroupNode {
+            Node::<External>::Group(GroupNode {
                 name: "Test123".into(),
                 group: Group::Favorites,
                 detail: ()
