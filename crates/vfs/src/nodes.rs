@@ -1,50 +1,49 @@
 //! Provides definitions for the different nodes located in the virtual filesystem.
 use adt_query::models::vfs::{Facet, RepositoryObject};
 use serde::{Deserialize, Serialize};
+use slotmap::DefaultKey;
 
-/// Defines the level of detail for nodes in the virtual filesystem.
-///
-/// This enables the __`FilesystemNode`__ to support different representations of nodes
-/// for internal use (e.g. with children and metadata) and external use (e.g. for
-/// serialization to clients).
-///
-/// ## Purposes
-/// - **External**: Allows nodes to be serialized with minimal data for client-server
-///   communication, ensuring clients have all the information they need to render and ask
-///   about more information regarding the specific node.
-/// - **Internal**: Supports additional details, like child nodes, for server-side
-///   processing, tree navigation and optimizing expand queries.
-pub trait NodeDetail {
-    type Facet: Default + std::fmt::Debug;
-    type Group: Default + std::fmt::Debug;
+#[derive(Debug, Eq, PartialEq, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VirtualNode {
+    pub id: DefaultKey,
+
+    #[serde(skip)]
+    pub parent: Option<DefaultKey>,
+
+    #[serde(skip)]
+    pub children: Option<Vec<DefaultKey>>,
+
+    #[serde(flatten)]
+    pub data: VirtualNodeData,
 }
 
-#[derive(Default, Debug)]
-pub struct Internal {}
-pub type External = ();
-
-impl NodeDetail for External {
-    type Facet = ();
-    type Group = ();
-}
-
-impl NodeDetail for Internal {
-    type Facet = FacetInternal;
-    type Group = GroupInternal;
+impl VirtualNode {
+    pub fn new<T>(id: DefaultKey, data: T) -> Self
+    where
+        T: Into<VirtualNodeData>,
+    {
+        Self {
+            id,
+            data: data.into(),
+            parent: None,
+            children: None,
+        }
+    }
 }
 
 /// Represents any node in the filesystem.
 ///
 /// The implications, purpose and expansion details depends on the variant.
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
-pub enum Node<T: NodeDetail> {
+pub enum VirtualNodeData {
     /// A, possibly custom, grouping for organizational purposes.
-    Group(GroupNode<T::Group>),
+    Group(GroupNode),
 
     /// Similar to Groups except they work on properties of objects and are the
     /// fundamental means of filtering the repository with ADT.
-    Facet(FacetNode<T::Facet>),
+    Facet(FacetNode),
 
     /// An actual object in the repository that provides data such as source
     /// code, definitions or table contents and cant be expanded.
@@ -54,39 +53,21 @@ pub enum Node<T: NodeDetail> {
     RepositoryObject(RepositoryObjectNode),
 }
 
-impl Node<Internal> {
-    pub fn children(&self) -> Option<&Vec<Node<Internal>>> {
-        match self {
-            Node::Facet(f) => f.detail.children.as_ref(),
-            Node::Group(g) => g.detail.children.as_ref(),
-            Node::RepositoryObject(..) => None,
-        }
-    }
-
-    pub fn assign(&mut self, children: Option<Vec<Node<Internal>>>) {
-        let arr = match self {
-            Node::Facet(f) => &mut f.detail.children,
-            Node::Group(g) => &mut g.detail.children,
-            _ => return,
-        };
-        *arr = children;
+impl From<GroupNode> for VirtualNodeData {
+    fn from(value: GroupNode) -> Self {
+        Self::Group(value)
     }
 }
 
-impl PartialEq<Node<Internal>> for Node<External> {
-    fn eq(&self, other: &Node<Internal>) -> bool {
-        match (self, other) {
-            (Node::Group(g1), Node::Group(g2)) => g1 == g2,
-            (Node::Facet(f1), Node::Facet(f2)) => f1 == f2,
-            (Node::RepositoryObject(r1), Node::RepositoryObject(r2)) => r1 == r2,
-            _ => false,
-        }
+impl From<FacetNode> for VirtualNodeData {
+    fn from(value: FacetNode) -> Self {
+        Self::Facet(value)
     }
 }
 
-impl PartialEq<Node<External>> for Node<Internal> {
-    fn eq(&self, other: &Node<External>) -> bool {
-        other == self
+impl From<RepositoryObjectNode> for VirtualNodeData {
+    fn from(value: RepositoryObjectNode) -> Self {
+        Self::RepositoryObject(value)
     }
 }
 
@@ -95,46 +76,21 @@ impl PartialEq<Node<External>> for Node<Internal> {
 /// How these nodes expand depends on the underlying group.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GroupNode<T> {
+pub struct GroupNode {
     /// The display name of the group in the filesystem.
     pub name: String,
 
     /// The technical definition of the group.
     pub group: Group,
-
-    #[serde(skip)]
-    detail: T,
 }
 
-impl GroupNode<GroupInternal> {
+impl GroupNode {
     pub fn new(group: Group) -> Self {
         Self {
             name: group.display_name().into(),
             group,
-            detail: GroupInternal { children: None },
         }
     }
-}
-
-impl PartialEq<GroupNode<External>> for GroupNode<GroupInternal> {
-    fn eq(&self, other: &GroupNode<External>) -> bool {
-        self.name == other.name && self.group == other.group
-    }
-}
-
-impl PartialEq<GroupNode<GroupInternal>> for GroupNode<External> {
-    fn eq(&self, other: &GroupNode<GroupInternal>) -> bool {
-        other == self
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct GroupInternal {
-    /// The children of the group node, i.e the nodes it groups together.
-    ///
-    /// Not included in serialization as we never send more than a layer of children
-    /// per request from the client (one expand only).
-    children: Option<Vec<Node<Internal>>>,
 }
 
 /// Represents a facet node in the fileystem.
@@ -145,59 +101,40 @@ pub struct GroupInternal {
 /// The main difference between a [Facet] compared to a [Group] is that they are
 /// part of the ADT representation of the VFS rather than groupings we can may
 /// create ourselves.
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FacetNode<T> {
-    /// The kind of facet, see [Facet]
-    facet: Facet,
-
+pub struct FacetNode {
     /// The display name of the facet.
     ///
     /// In the case of a `TYPE` facet, this could, for example, be `Classes` or `Programs`..
-    name: String,
+    pub name: String,
+
+    /// The kind of facet, see [Facet]
+    #[serde(skip)]
+    pub facet: Facet,
 
     /// The technical name of the facet.
     ///
     /// In the case of a `TYPE` facet, this could, for example, be `CLAS` or `PROG`..
-    technical_name: String,
-
-    /// If the facet is not itself a `PACKAGE` facet, then the parent package in the hierarchy.
-    ///
-    /// This is needed to uniquely identify the position of the facet in the filesystem, as
-    /// packages generally expand into the same structure.
-    pub package: Option<String>,
+    #[serde(skip)]
+    pub value: String,
 
     #[serde(skip)]
-    detail: T,
-}
-
-impl PartialEq<FacetNode<FacetInternal>> for FacetNode<External> {
-    fn eq(&self, other: &FacetNode<FacetInternal>) -> bool {
-        self.facet == other.facet
-            && self.name == other.name
-            && self.technical_name == other.technical_name
-            && self.package == other.package
-    }
-}
-
-impl PartialEq<FacetNode<External>> for FacetNode<FacetInternal> {
-    fn eq(&self, other: &FacetNode<External>) -> bool {
-        other == self
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct FacetInternal {
-    /// The children of the group node, i.e the nodes it groups together.
-    ///
-    /// Not included in serialization as we never send more than a layer of children
-    /// per request from the client (one expand only).
-    pub children: Option<Vec<Node<Internal>>>,
-
-    /// Whether this node has child facets of the same kind. This is typically the case with
-    /// packages that contain sub-packages. Since packages and other facets need to be fetched
-    /// individually, this helps optimize that additional fetch away if we know it is not needed.
     pub has_children_of_same_facet: bool,
+}
+
+impl FacetNode {
+    pub fn new<T>(facet: Facet, value: T, name: T, has_children_of_same_facet: bool) -> Self
+    where
+        T: Into<String>,
+    {
+        Self {
+            facet,
+            value: value.into(),
+            name: name.into(),
+            has_children_of_same_facet,
+        }
+    }
 }
 
 /// Represents a repository object node in the filesystem.
@@ -207,10 +144,10 @@ pub struct FacetInternal {
 #[serde(rename_all = "camelCase")]
 pub struct RepositoryObjectNode {
     /// The name of the repository object
-    name: String,
+    pub name: String,
 
     /// The kind of object, e.g `PROG/P`, etc..
-    object_kind: RepositoryObject,
+    pub object_kind: RepositoryObject,
 }
 
 /// Possible categorization options for [GroupNode]
@@ -218,7 +155,7 @@ pub struct RepositoryObjectNode {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Group {
     /// The system root
-    System,
+    System(#[serde(skip)] String),
 
     /// Categorizes nodes which are not part of the system library. This __does not__
     /// exclude local objects from other developers in the same system.
@@ -232,9 +169,9 @@ pub enum Group {
 }
 
 impl Group {
-    pub fn display_name(&self) -> &'static str {
+    pub fn display_name(&self) -> &str {
         match self {
-            Self::System => "",
+            Self::System(name) => name.as_str(),
             Self::LocalObjects => "Local Objects",
             Self::SystemLibrary => "System Library",
             Self::Favorites => "Favorite Objects",
@@ -245,34 +182,33 @@ impl Group {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use slotmap::SlotMap;
 
     #[test]
-    fn internal_group_serializes_without_detail() {
-        let node = Node::<Internal>::Group(GroupNode {
-            name: "Test123".into(),
-            group: Group::Favorites,
-            detail: GroupInternal { children: None },
-        });
+    fn serialize_system_node() {
+        let mut nodes = SlotMap::new();
+        let root_group = GroupNode::new(Group::System("A4H".to_owned()));
 
+        let key = nodes.insert_with_key(|k| VirtualNode::new(k, root_group));
+        let node = nodes.get(key);
         let result = serde_json::to_string(&node).unwrap();
         assert_eq!(
             result,
-            r#"{"kind":"group","name":"Test123","group":"FAVORITES"}"#
+            r#"{"id":{"idx":1,"version":1},"kind":"group","name":"A4H","group":"SYSTEM"}"#
         );
     }
 
     #[test]
-    fn deserializes_external_group() {
-        let content = r#"{"kind":"group","name":"Test123","group":"FAVORITES"}"#;
+    fn serialize_package() {
+        let mut nodes = SlotMap::new();
+        let package = FacetNode::new(Facet::Package, "DEVC/K", "/BUILD/", false);
 
-        let node: Node<External> = serde_json::from_str(&content).unwrap();
+        let key = nodes.insert_with_key(|k| VirtualNode::new(k, package));
+        let node = nodes.get(key);
+        let result = serde_json::to_string(&node).unwrap();
         assert_eq!(
-            node,
-            Node::<External>::Group(GroupNode {
-                name: "Test123".into(),
-                group: Group::Favorites,
-                detail: ()
-            })
-        )
+            result,
+            r#"{"id":{"idx":1,"version":1},"kind":"facet","name":"/BUILD/"}"#
+        );
     }
 }
