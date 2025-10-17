@@ -35,6 +35,14 @@ impl VirtualNode {
         self.parent = Some(parent);
         self
     }
+
+    pub fn name(&self) -> &str {
+        match &self.data {
+            VirtualNodeData::Group(g) => g.name.as_str(),
+            VirtualNodeData::Facet(f) => f.name.as_str(),
+            VirtualNodeData::RepositoryObject(r) => r.name.as_str(),
+        }
+    }
 }
 
 /// Represents any node in the filesystem.
