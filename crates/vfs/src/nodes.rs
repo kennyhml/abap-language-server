@@ -1,5 +1,5 @@
 //! Provides definitions for the different nodes located in the virtual filesystem.
-use adt_query::models::vfs::{Facet, RepositoryObject};
+use adt_query::models::vfs::{Facet, Object, RepositoryObject, VirtualFolder};
 use serde::{Deserialize, Serialize};
 use slotmap::DefaultKey;
 
@@ -30,6 +30,11 @@ impl VirtualNode {
             children: None,
         }
     }
+
+    pub fn parent(mut self, parent: DefaultKey) -> Self {
+        self.parent = Some(parent);
+        self
+    }
 }
 
 /// Represents any node in the filesystem.
@@ -51,6 +56,26 @@ pub enum VirtualNodeData {
     /// Eclipse allows you to expand these nodes into the individual things defined
     /// in them, but that is not possible with vscode folders.
     RepositoryObject(RepositoryObjectNode),
+}
+
+impl From<VirtualFolder> for VirtualNodeData {
+    fn from(value: VirtualFolder) -> Self {
+        VirtualNodeData::Facet(FacetNode {
+            name: value.display_name,
+            value: value.name,
+            facet: value.facet,
+            has_children_of_same_facet: value.has_children_of_same_facet,
+        })
+    }
+}
+
+impl From<Object> for VirtualNodeData {
+    fn from(value: Object) -> Self {
+        VirtualNodeData::RepositoryObject(RepositoryObjectNode {
+            name: value.name,
+            object_kind: value.kind,
+        })
+    }
 }
 
 impl From<GroupNode> for VirtualNodeData {

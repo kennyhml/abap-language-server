@@ -56,6 +56,15 @@ where
 #[derive(Debug)]
 pub struct Success<T: DeserializeOwned>(http::Response<T>);
 
+impl<T> Success<T>
+where
+    T: DeserializeOwned,
+{
+    pub fn take(self) -> http::Response<T> {
+        self.0
+    }
+}
+
 impl<T> Deref for Success<T>
 where
     T: DeserializeOwned,

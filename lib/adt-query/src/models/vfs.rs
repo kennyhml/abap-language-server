@@ -173,7 +173,7 @@ pub enum Facet {
     /// The kind of longtext documentation of the development object, which can be KTD, SAPSCRIPT or NONE.
     #[serde(rename = "DOCU")]
     Docu,
-    #[serde(rename = "$value")]
+    #[serde(untagged)]
     Custom(String),
 }
 
@@ -251,12 +251,13 @@ pub struct Preselection<'a> {
 impl<'a> Preselection<'a> {
     /// Quick builder for an inclusive preselection. If you need more complex
     /// expressions (i.e. multiple include/excludes) use the [PreselectionBuilder]
-    pub fn new<T>(facet: Facet, value: T) -> Self
+    pub fn new<T, F>(facet: F, value: T) -> Self
     where
         T: Into<Cow<'a, str>>,
+        F: Into<Facet>,
     {
         Self {
-            facet,
+            facet: facet.into(),
             values: vec![value.into()],
         }
     }
@@ -290,7 +291,6 @@ pub struct PreselectionInfo {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename = "vfs:virtualFolder")]
-#[readonly::make]
 pub struct VirtualFolder {
     /// Technical name of the folder, for example `INTF` for interfaces, `CLAS` for classes..
     #[serde(rename = "@name")]
@@ -327,6 +327,14 @@ pub struct FacetOrder {
     #[serde(rename = "vfs:facet")]
     #[builder(setter(each(name = "push")))]
     facets: Vec<Facet>,
+}
+
+impl<'a> From<Facet> for FacetOrder {
+    fn from(value: Facet) -> Self {
+        FacetOrder {
+            facets: vec![value],
+        }
+    }
 }
 
 impl<'a> From<Vec<Facet>> for FacetOrder {

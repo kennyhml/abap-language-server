@@ -13,7 +13,7 @@ async fn local_objects_are_retrieved() {
     let client = common::setup_test_system_client();
 
     let op = api::repository::RepositoryContentBuilder::default()
-        .order(
+        .wanted_facets(
             FacetOrderBuilder::default()
                 .push(Facet::Owner)
                 .push(Facet::Package)

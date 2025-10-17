@@ -53,8 +53,8 @@ pub struct RepositoryContent<'a> {
     ///
     /// **Note:** Despite being a list of items, as per the servers behavior, only the first
     /// facet in the list is actually ever used.
-    #[builder(default)]
-    order: FacetOrder,
+    #[builder(default, setter(into))]
+    wanted_facets: FacetOrder,
 
     /// Either `expand`, which returns the desired objects or `count`, which returns the number of matches.
     ///
@@ -98,8 +98,11 @@ impl<'a> Operation for RepositoryContent<'a> {
     }
 
     fn body(&self) -> Option<Result<String, serde_xml_rs::Error>> {
-        let body =
-            VirtualFoldersRequest::new(&self.search_pattern, &self.preselections, &self.order);
+        let body = VirtualFoldersRequest::new(
+            &self.search_pattern,
+            &self.preselections,
+            &self.wanted_facets,
+        );
 
         Some(body.into_xml_root())
     }
