@@ -11,6 +11,7 @@ use slotmap::{DefaultKey, SlotMap};
 type AdtClient<T> = adt_query::Client<T>;
 
 /// Represents a filesystem as tree of Nodes
+#[derive(Debug)]
 pub struct VirtualFileTree {
     root: DefaultKey,
     nodes: SlotMap<DefaultKey, VirtualNode>,
@@ -49,7 +50,12 @@ impl VirtualFileTree {
         let nodes = {
             let node = self.lookup(id).unwrap();
             let expander = match &node.data {
-                VirtualNodeData::Facet(facet) => self.build_facet_expander(&facet, node.id),
+                VirtualNodeData::Facet(facet) => {
+                    if facet.count == 0 {
+                        return vec![];
+                    }
+                    self.build_facet_expander(&facet, node.id)
+                }
                 VirtualNodeData::Group(group) => self.build_group_expander(&group),
                 _ => panic!(),
             };
@@ -256,7 +262,7 @@ mod tests {
         let serialized = serde_json::to_string(&result).unwrap();
         assert_eq!(
             serialized,
-            r#"[{"id":{"idx":5,"version":1},"kind":"facet","name":"DEVELOPER"}]"#
+            r#"[{"id":{"idx":5,"version":1},"kind":"facet","name":"DEVELOPER","count":294}]"#
         );
     }
 }

@@ -3,13 +3,6 @@
  */
 export const NodeType = {
 	/**
-	 * The root node, takes the name of its system and has static components.
-	 */
-	Root: 'root',
-
-	System: 'system',
-
-	/**
 	 * A {@link VirtualGrouping virtual grouping} to organize related objects.
 	 */
 	Group: 'group',
@@ -27,6 +20,8 @@ export const NodeType = {
  */
 export type NodeType = (typeof NodeType)[keyof typeof NodeType];
 
+export type NodeId = { idx: number; version: number };
+
 /**
  * Represents a single node in the filsystem tree.
  *
@@ -35,12 +30,7 @@ export type NodeType = (typeof NodeType)[keyof typeof NodeType];
  *
  * To access the children of the node, you must first expand it with **`filesystem/expand`**.
  */
-export type FilesystemNode =
-	| RepositoryObjectNode
-	| GroupNode
-	| RootNode
-	| SystemNode
-	| FacetNode;
+export type FilesystemNode = RepositoryObjectNode | GroupNode | FacetNode;
 
 const UNICODE_FAKE_FORWARD_SLASH = ' ⁄ ';
 
@@ -49,6 +39,8 @@ const UNICODE_FAKE_FORWARD_SLASH = ' ⁄ ';
  */
 export type RepositoryObjectNode = {
 	kind: typeof NodeType.RepositoryObject;
+
+	id: NodeId;
 
 	name: string;
 
@@ -67,9 +59,11 @@ export type RepositoryObjectNode = {
 export type GroupNode = {
 	kind: typeof NodeType.Group;
 
+	id: NodeId;
+
 	name: string;
 
-	technicalName: string;
+	group: 'SYSTEM' | 'LOCAL_OBJECTS' | 'SYSTEM_LIBRARY' | 'FAVORITES';
 
 	children?: FilesystemNode[];
 };
@@ -77,74 +71,22 @@ export type GroupNode = {
 export type FacetNode = {
 	kind: typeof NodeType.Facet;
 
-	name: string;
-
-	technicalName: string;
-
-	package?: string;
-
-	children?: FilesystemNode[];
-
-	facet: string;
-};
-
-/**
- * A node representing the root of the filesystem.
- */
-export type RootNode = {
-	kind: typeof NodeType.Root;
-
-	name: '';
-
-	children?: SystemNode[];
-};
-
-/**
- * A node representing the root of the filesystem.
- */
-export type SystemNode = {
-	kind: typeof NodeType.System;
+	id: NodeId;
 
 	name: string;
+
+	count: number;
 
 	children?: FilesystemNode[];
 };
 
-/**
- * Constructs a new root filesystem node for the given system name.
- *
- * @param system The name of the system to start a filesystem tree for.
- *
- * @returns A root node with the name of the system and the required groupings.
- */
-export function newSystemRoot(system: string): SystemNode {
+export function newSystemRoot(systemId: string): GroupNode {
 	return {
-		name: system,
-		kind: NodeType.System,
-		children: undefined,
+		kind: NodeType.Group,
+		group: 'SYSTEM',
+		name: systemId,
+		id: { idx: 1, version: 1 },
 	};
-}
-
-export function newRootNode(): RootNode {
-	return {
-		name: '', // root node has no visible name
-		kind: NodeType.Root,
-		children: [],
-	};
-}
-
-/**
- * @returns Whether the given node is the {@link RootNode}.
- */
-export function isRoot(node: FilesystemNode): node is RootNode {
-	return node.kind === NodeType.Root;
-}
-
-/**
- * @returns Whether the given node is the {@link RootNode}.
- */
-export function isSystem(node: FilesystemNode): node is SystemNode {
-	return node.kind === NodeType.System;
 }
 
 /**
@@ -156,6 +98,15 @@ export function isGroup(node: FilesystemNode): node is GroupNode {
 
 export function isFacet(node: FilesystemNode): node is FacetNode {
 	return node.kind === NodeType.Facet;
+}
+
+/**
+ * @returns Whether the given node is an {@link ObjectNode}.
+ */
+export function isSystem(
+	node: FilesystemNode,
+): node is GroupNode & { group: 'SYSTEM' } {
+	return node.kind === NodeType.Group && node.group == 'SYSTEM';
 }
 
 /**
@@ -180,14 +131,7 @@ export function walk(
 }
 
 export function isExpandable(node: FilesystemNode) {
-	return isPackage(node) || isGroup(node) || isSystem(node) || isFacet(node);
-}
-
-/**
- * @returns Whether the given node is a {@link RepositoryObject.Package package}.
- */
-export function isPackage(node: FilesystemNode): node is FacetNode {
-	return node.kind === NodeType.Facet && node.facet === 'PACKAGE';
+	return isGroup(node) || isFacet(node);
 }
 
 /**
@@ -241,7 +185,7 @@ export function toRealName(name: string): string {
  * @returns Depending on the concrete node type, either an empty string or a suffix to append.
  */
 function objectSuffix(node: FilesystemNode): string {
-	if (isObject(node) && !isPackage(node)) {
+	if (isObject(node)) {
 		// TODO: Using the first 4 characters of the object name isnt ideal, alot of
 		// different objects share it (e.g) PROG/P = program, PROG/I = Include, both are PROG.
 		return '.' + node.objectKind.substring(0, 4).toLowerCase();

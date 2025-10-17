@@ -3,11 +3,11 @@
  */
 
 import type { ConnectionParams } from './connection';
-import type { FilesystemNode } from './filesystem';
+import type { FilesystemNode, NodeId } from './filesystem';
 
 export type LanguageServerMethods = {
 	'filesystem/expand': {
-		params: { node: FilesystemNode };
+		params: { id: NodeId };
 		result: { children: FilesystemNode[] };
 	};
 	'connection/connect': {

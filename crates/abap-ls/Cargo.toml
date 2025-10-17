@@ -8,11 +8,13 @@ name = "abap-language-server"
 path = "./src/main.rs"
 
 [dependencies]
+vfs = { path = "../vfs" }
 tower-lsp.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing-subscriber = "0.3"
+slotmap = { version = "1.0", features = ["serde"] }
 
 adt-query.workspace = true
 reqwest.workspace = true

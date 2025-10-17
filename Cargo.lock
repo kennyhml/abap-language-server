@@ -10,9 +10,11 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "slotmap",
  "tokio",
  "tower-lsp",
  "tracing-subscriber",
+ "vfs",
 ]
 
 [[package]]

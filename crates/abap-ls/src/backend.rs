@@ -1,10 +1,11 @@
-use tokio::sync::OnceCell;
+use tokio::sync::{Mutex, OnceCell};
 use tower_lsp::jsonrpc::{Error, Result};
 use tower_lsp::lsp_types::{InitializedParams, MessageType};
 use tower_lsp::{
     Client as LspClient, LanguageServer,
     lsp_types::{InitializeParams, InitializeResult, ServerCapabilities},
 };
+use vfs::tree::VirtualFileTree;
 
 pub type AdtClient = adt_query::Client<reqwest::Client>;
 
@@ -15,11 +16,16 @@ pub type AdtClient = adt_query::Client<reqwest::Client>;
 pub struct ClientContext {
     // Client to communicate with the ADT backend
     pub adt_client: AdtClient,
+
+    pub filetree: Mutex<VirtualFileTree>,
 }
 
 impl ClientContext {
-    pub fn new(adt_client: AdtClient) -> Self {
-        Self { adt_client }
+    pub fn new(adt_client: AdtClient, system: String) -> Self {
+        Self {
+            adt_client,
+            filetree: Mutex::new(VirtualFileTree::new(system)),
+        }
     }
 }
 
@@ -42,7 +48,7 @@ impl Backend {
         &self.client
     }
 
-    pub async fn context(&self) -> Result<&ClientContext> {
+    pub fn context(&self) -> Result<&ClientContext> {
         self.client_ctx_once.get().ok_or(Error::internal_error())
     }
 }

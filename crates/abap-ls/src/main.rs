@@ -20,6 +20,7 @@ async fn main() {
             let (read, write) = tokio::io::split(stream);
             let (service, socket) = LspService::build(|client| Backend::new(client))
                 .custom_method("connection/connect", Backend::connect)
+                .custom_method("filesystem/expand", Backend::expand)
                 .finish();
             Server::new(read, write, socket).serve(service).await;
 

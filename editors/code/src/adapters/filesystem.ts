@@ -9,21 +9,20 @@ import {
 	type FileSystemProvider,
 } from 'vscode';
 import {
-	newRootNode,
 	walk,
 	isExpandable,
-	newSystemRoot,
-	isSystem,
-	type RootNode,
 	type FilesystemNode,
 	toDisplayName,
 	toRealName,
 	isObject,
+	isSystem,
+	newSystemRoot,
+	type GroupNode,
 } from 'core';
 import type { ConnectionManager } from 'lib/connection';
 
 export class VirtualFilesystem implements FileSystemProvider {
-	private root: RootNode;
+	private roots: Map<string, GroupNode>;
 
 	private _onDidChangeFile = new EventEmitter<FileChangeEvent[]>();
 	public readonly onDidChangeFile = this._onDidChangeFile.event;
@@ -34,11 +33,10 @@ export class VirtualFilesystem implements FileSystemProvider {
 			// do we even need this event here? the workspace now determines
 			// what folders are shown,
 		});
-
-		this.root = newRootNode();
-		this.root.children = connections
-			.getWorkspaceConnections()
-			.map((conn) => newSystemRoot(conn.systemId));
+		this.roots = new Map();
+		for (const conn of connections.getWorkspaceConnections()) {
+			this.roots.set(conn.systemId, newSystemRoot(conn.systemId));
+		}
 	}
 
 	/**
@@ -52,9 +50,12 @@ export class VirtualFilesystem implements FileSystemProvider {
 	 */
 
 	stat(uri: Uri): FileStat {
-		let node = walk(this.root, this.breakIntoParts(uri));
-		if (node) {
-			return this.toFileStat(node);
+		const root = this.roots.get(uri.authority.toUpperCase());
+		if (root) {
+			const node = walk(root, this.breakIntoParts(uri));
+			if (node) {
+				return this.toFileStat(node);
+			}
 		}
 		throw FileSystemError.FileNotFound(uri);
 	}
@@ -72,7 +73,11 @@ export class VirtualFilesystem implements FileSystemProvider {
 	 * @returns A list of tuples mapping the sub-objects to their filetype.
 	 */
 	async readDirectory(uri: Uri): Promise<[string, FileType][]> {
-		const node = walk(this.root, this.breakIntoParts(uri));
+		const root = this.roots.get(uri.authority.toUpperCase());
+		if (!root) {
+			throw FileSystemError.FileNotFound(uri);
+		}
+		const node = walk(root, this.breakIntoParts(uri));
 		if (!node || isObject(node)) {
 			throw FileSystemError.FileNotFound(uri);
 		}
@@ -121,15 +126,11 @@ export class VirtualFilesystem implements FileSystemProvider {
 	 * >>> ["A4H", "System Library", "Z_PACKAGE", "CL_CRAZY_CLASS"]
 	 */
 	private breakIntoParts(uri: Uri): string[] {
-		if (!uri.authority) {
-			return [];
-		}
 		// Make sure to split the path BEFORE replacing the fake slashes!!
-		const pathSegments = uri.path
+		return uri.path
 			.split('/')
 			.filter((segment) => segment.length > 0)
 			.map(toRealName);
-		return [uri.authority.toUpperCase(), ...pathSegments];
 	}
 
 	private async expand(
@@ -140,7 +141,7 @@ export class VirtualFilesystem implements FileSystemProvider {
 
 		let result: { children: FilesystemNode[] } = await client.invokeCustom(
 			'filesystem/expand',
-			{ node },
+			{ id: node.id },
 		);
 
 		// The only concept the server knows is actual repository objects

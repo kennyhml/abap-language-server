@@ -1,0 +1,35 @@
+use serde::{Deserialize, Serialize};
+use slotmap::DefaultKey;
+use tower_lsp::jsonrpc::Result;
+use vfs::nodes::VirtualNode;
+
+use crate::backend::Backend;
+
+/// Parameters for **`connection/connect`**
+///
+/// Attempts to establish a backend connection to the ABAP Developement Tools
+/// and an editor context for the requested system.
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpandParams {
+    pub id: DefaultKey,
+}
+
+/// Response of **`connection/connect`**
+#[derive(Debug, Eq, PartialEq, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpandResult {
+    children: Vec<VirtualNode>,
+}
+
+impl Backend {
+    pub async fn expand(&self, params: ExpandParams) -> Result<ExpandResult> {
+        let ctx = self.context().unwrap();
+        let mut filetree = ctx.filetree.lock().await;
+
+        let result = filetree.expand(params.id, &ctx.adt_client).await;
+
+        let children: Vec<VirtualNode> = result.into_iter().cloned().collect();
+        Ok(ExpandResult { children })
+    }
+}

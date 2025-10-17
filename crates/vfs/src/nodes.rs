@@ -72,6 +72,7 @@ impl From<VirtualFolder> for VirtualNodeData {
             name: value.display_name,
             value: value.name,
             facet: value.facet,
+            count: value.object_count,
             has_children_of_same_facet: value.has_children_of_same_facet,
         })
     }
@@ -107,7 +108,7 @@ impl From<RepositoryObjectNode> for VirtualNodeData {
 /// Custom categorization of items into groups for organizational purposes.
 ///
 /// How these nodes expand depends on the underlying group.
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupNode {
     /// The display name of the group in the filesystem.
@@ -142,6 +143,8 @@ pub struct FacetNode {
     /// In the case of a `TYPE` facet, this could, for example, be `Classes` or `Programs`..
     pub name: String,
 
+    pub count: i32,
+
     /// The kind of facet, see [Facet]
     #[serde(skip)]
     pub facet: Facet,
@@ -163,6 +166,7 @@ impl FacetNode {
     {
         Self {
             facet,
+            count: 0,
             value: value.into(),
             name: name.into(),
             has_children_of_same_facet,
@@ -241,7 +245,7 @@ mod tests {
         let result = serde_json::to_string(&node).unwrap();
         assert_eq!(
             result,
-            r#"{"id":{"idx":1,"version":1},"kind":"facet","name":"/BUILD/"}"#
+            r#"{"id":{"idx":1,"version":1},"kind":"facet","name":"/BUILD/","count":0}"#
         );
     }
 }
