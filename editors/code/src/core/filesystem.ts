@@ -172,7 +172,7 @@ export function toRealName(name: string): string {
 	// A dot should be illegal in file / package names, so if there is one we can safely
 	// assume that it is because of our suffix.
 	if (name.includes('.')) {
-		name = name.substring(0, -4);
+		name = name.substring(0, name.length - 5);
 	}
 	return name;
 }
