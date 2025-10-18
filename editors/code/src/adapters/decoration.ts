@@ -10,6 +10,8 @@ import {
 	type ProviderResult,
 	ThemeColor,
 } from 'vscode';
+import type { VirtualFilesystem } from './filesystem';
+import { isFacet } from 'core';
 
 /**
  * Parameters to fire an Event with when the file decoration changed.
@@ -28,7 +30,10 @@ type FileDecorationChanged = Uri | Uri[] | undefined;
  * accordingly and also inform the extension framework that such an update occurred.
  */
 export class SystemDecorationProvider implements FileDecorationProvider {
-	constructor(private connections: ConnectionManager) {
+	constructor(
+		private connections: ConnectionManager,
+		private filesystem: VirtualFilesystem,
+	) {
 		// When a system is connected to, we need to remove the 'locked' decoration
 		// from it and propagate the event up to the file decoration change event.
 		connections.onDidChangeConnection((event) => {
@@ -49,26 +54,40 @@ export class SystemDecorationProvider implements FileDecorationProvider {
 		uri: Uri,
 		_token: CancellationToken,
 	): ProviderResult<FileDecoration> {
-		if (uri.scheme !== ADT_URI_SCHEME) {
+		if (!uri.authority || !uri.path) {
 			return;
 		}
-		const system = getTargetSystem(uri);
 
-		if (!this.isExistingSystem(system)) {
-			return {
-				badge: '⚠️',
-				color: new ThemeColor('errorForeground'),
-				propagate: false,
-				tooltip: `Dangling System: No connection data for '${system}' exists.`,
-			};
+		// System Level
+		if (uri.path == '/') {
+			const system = getTargetSystem(uri);
+			if (!this.isExistingSystem(system)) {
+				return {
+					badge: '⚠️',
+					color: new ThemeColor('errorForeground'),
+					propagate: false,
+					tooltip: `Dangling System: No connection data for '${system}' exists.`,
+				};
+			}
+			if (!this.isActiveSystem(system)) {
+				return {
+					badge: '🔒',
+					color: new ThemeColor('descriptionForeground'),
+					propagate: false,
+					tooltip: `Not connected to system ${system}.`,
+				};
+			}
+			return undefined;
 		}
 
-		if (!this.isActiveSystem(system)) {
+		// Node Level
+		let node = this.filesystem.lookup(uri);
+		if (node && isFacet(node) && node.count == 0) {
 			return {
-				badge: '🔒',
+				badge: '',
 				color: new ThemeColor('descriptionForeground'),
 				propagate: false,
-				tooltip: `Not connected to system ${system}.`,
+				tooltip: `No elements`,
 			};
 		}
 	}

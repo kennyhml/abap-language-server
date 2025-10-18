@@ -50,14 +50,18 @@ export class VirtualFilesystem implements FileSystemProvider {
 	 */
 
 	stat(uri: Uri): FileStat {
-		const root = this.roots.get(uri.authority.toUpperCase());
-		if (root) {
-			const node = walk(root, this.breakIntoParts(uri));
-			if (node) {
-				return this.toFileStat(node);
-			}
+		const node = this.lookup(uri);
+		if (node) {
+			return this.toFileStat(node);
 		}
 		throw FileSystemError.FileNotFound(uri);
+	}
+
+	public lookup(uri: Uri): FilesystemNode | undefined {
+		const root = this.roots.get(uri.authority.toUpperCase());
+		if (root) {
+			return walk(root, this.breakIntoParts(uri));
+		}
 	}
 
 	/**

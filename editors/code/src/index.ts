@@ -14,6 +14,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 	const vfs = new VirtualFilesystem(connections);
+	const deco = new SystemDecorationProvider(connections, vfs);
 	context.subscriptions.push(
 		vscode.workspace.registerFileSystemProvider('adt', vfs, {
 			isCaseSensitive: true,
@@ -35,9 +36,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		),
 	);
 
-	vscode.window.registerFileDecorationProvider(
-		new SystemDecorationProvider(connections),
-	);
+	vscode.window.registerFileDecorationProvider(deco);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('abap.connectToSystem', async (data) =>
