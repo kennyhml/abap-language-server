@@ -90,6 +90,7 @@
         "Form Objects": "_group_collapsed",
         "Code Composer": "_group_collapsed",
         "HDI Namespace": "_group_collapsed",
+        "LRep": "_group_collapsed",
         // Types: ABAP Test Cockpit
         "Check Categories": "_type_collapsed",
         "Check Variants": "_type_collapsed",
@@ -179,6 +180,25 @@
         "Test Data Container": "_type_collapsed",
         "Test Scripts": "_type_collapsed",
         "Validation Objects": "_type_collapsed",
+        // Types: Web Dynpro
+        "FPM Application Configurations": "_type_collapsed",
+        "FPM Applications": "_type_collapsed",
+        "FPM Floorplan Configurations": "_type_collapsed",
+        "FPM GUIBB Configurations": "_type_collapsed",
+        "FPM Layout Component Configurations": "_type_collapsed",
+        "Web Dynpro Component Configurations": "_type_collapsed",
+        "Web Dynpro Application Configurations": "_type_collapsed",
+        "Web Dynpro Component Interfaces": "_type_collapsed",
+        "Web Dynpro Applications": "_type_collapsed",
+        "Web Dynpro Components ⁄ Interfaces": "_type_collapsed",
+        // Types: Others
+        "All OTR Strings in Packages": "_type_collapsed",
+        "Business Add-Ins (Impl.)": "_type_collapsed",
+        "Checkpoint Groups": "_type_collapsed",
+        "Configuration Entities": "_type_collapsed",
+        "GW Service Builder Projects": "_type_collapsed",
+        "Shared Objects Area Classes": "_type_collapsed",
+        "Technical Job Definitions": "_type_collapsed",
     },
     "folderNamesExpanded": {
         // "Custom" GGroups

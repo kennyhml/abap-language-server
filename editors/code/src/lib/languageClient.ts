@@ -7,10 +7,11 @@ import {
 	type ErrorHandlerResult,
 	type StreamInfo,
 } from 'vscode-languageclient/node';
-import { window } from 'vscode';
+import { window, workspace } from 'vscode';
 import { type ConnectionData } from 'core';
 import type { LanguageServerMethods } from 'core/lsp';
 import { establishServerConnection } from 'core/client';
+import { ADT_URI_SCHEME } from './uri';
 
 class ClientErrorHandler implements ErrorHandler {
 	error(error: Error, message: any, count: number): ErrorHandlerResult {
@@ -52,6 +53,10 @@ export class AbapLanguageClient extends LanguageClient {
 		super('abap', `${system} Language Server`, serverOptions, {
 			outputChannel: ch,
 			errorHandler: new ClientErrorHandler(),
+			documentSelector: [{ scheme: ADT_URI_SCHEME, language: 'abap' }],
+			synchronize: {
+				fileEvents: workspace.createFileSystemWatcher('**/*.clas'),
+			},
 		});
 	}
 

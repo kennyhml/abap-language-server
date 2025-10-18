@@ -20,6 +20,7 @@ import {
 	type GroupNode,
 } from 'core';
 import type { ConnectionManager } from 'lib/connection';
+import { getTargetSystem } from 'lib';
 
 export class VirtualFilesystem implements FileSystemProvider {
 	private roots: Map<string, GroupNode>;
@@ -143,10 +144,9 @@ export class VirtualFilesystem implements FileSystemProvider {
 	): Promise<FilesystemNode[]> {
 		let client = this.connections.getActive(system)!.getLanguageClient();
 
-		let result: { children: FilesystemNode[] } = await client.invokeCustom(
-			'filesystem/expand',
-			{ id: node.id },
-		);
+		let result = await client.invokeCustom('filesystem/expand', {
+			id: node.id,
+		});
 
 		// The only concept the server knows is actual repository objects
 		return result.children;
@@ -156,8 +156,22 @@ export class VirtualFilesystem implements FileSystemProvider {
 		return isSystem(node) && !this.connections.getActive(node.name);
 	}
 
-	readFile(uri: Uri): Uint8Array {
-		return new TextEncoder().encode(uri.toString());
+	public async readFile(uri: Uri): Promise<Uint8Array> {
+		const system = getTargetSystem(uri);
+		const node = this.lookup(uri);
+		if (!node || !system) {
+			throw FileSystemError.FileNotFound(uri);
+		}
+		if (!isObject(node)) {
+			throw FileSystemError.FileIsADirectory(uri);
+		}
+
+		let client = this.connections.getActive(system)!.getLanguageClient();
+		let result = await client.invokeCustom('filesystem/source', {
+			id: node.id,
+		});
+
+		return new TextEncoder().encode(result.content);
 	}
 
 	writeFile(

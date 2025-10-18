@@ -21,6 +21,7 @@ async fn main() {
             let (service, socket) = LspService::build(|client| Backend::new(client))
                 .custom_method("connection/connect", Backend::connect)
                 .custom_method("filesystem/expand", Backend::expand)
+                .custom_method("filesystem/source", Backend::read)
                 .finish();
             Server::new(read, write, socket).serve(service).await;
 

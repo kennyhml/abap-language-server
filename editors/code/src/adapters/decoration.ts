@@ -54,7 +54,7 @@ export class SystemDecorationProvider implements FileDecorationProvider {
 		uri: Uri,
 		_token: CancellationToken,
 	): ProviderResult<FileDecoration> {
-		if (!uri.authority || !uri.path) {
+		if (!uri.authority || uri.scheme !== ADT_URI_SCHEME || !uri.path) {
 			return;
 		}
 

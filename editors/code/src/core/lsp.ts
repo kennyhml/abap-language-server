@@ -10,6 +10,10 @@ export type LanguageServerMethods = {
 		params: { id: NodeId };
 		result: { children: FilesystemNode[] };
 	};
+	'filesystem/source': {
+		params: { id: NodeId };
+		result: { content: string };
+	};
 	'connection/connect': {
 		params: { systemId: string; authentication: any } & ConnectionParams;
 		result: { kind: 'alreadyConnected' | 'created' };

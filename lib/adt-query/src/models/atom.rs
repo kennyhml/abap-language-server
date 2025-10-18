@@ -59,7 +59,6 @@ pub struct Content {
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename = "atom:link")]
-#[readonly::make]
 pub struct Link {
     #[serde(rename = "@href")]
     pub href: String,

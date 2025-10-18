@@ -80,9 +80,11 @@ impl From<VirtualFolder> for VirtualNodeData {
 
 impl From<Object> for VirtualNodeData {
     fn from(value: Object) -> Self {
+        let mut value = value;
         VirtualNodeData::RepositoryObject(RepositoryObjectNode {
             name: value.name,
             object_kind: value.kind,
+            adt_uri: value.links.remove(0).href,
         })
     }
 }
@@ -185,6 +187,9 @@ pub struct RepositoryObjectNode {
 
     /// The kind of object, e.g `PROG/P`, etc..
     pub object_kind: RepositoryObject,
+
+    #[serde(skip)]
+    pub adt_uri: String,
 }
 
 /// Possible categorization options for [GroupNode]

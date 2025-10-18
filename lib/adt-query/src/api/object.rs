@@ -7,9 +7,12 @@ use std::borrow::Cow;
 
 use crate::{
     QueryParameters,
-    models::asx::{self, LockResult},
-    operation::{Operation, Stateful},
-    response::Success,
+    models::{
+        adtcore,
+        asx::{self, LockResult},
+    },
+    operation::{Operation, Stateful, Stateless},
+    response::{CacheControlled, Plain, Success},
 };
 
 // Possible actions to perform on objects
@@ -83,6 +86,47 @@ impl AccessMode {
             Self::Show => "SHOW",
             Self::Modify => "MODIFY",
         }
+    }
+}
+
+#[derive(Builder, Debug)]
+#[builder(setter(strip_option))]
+pub struct ObjectSourceRequest<'a> {
+    #[builder(setter(into))]
+    object_uri: Cow<'a, str>,
+
+    #[builder(setter(into), default)]
+    etag: Option<Cow<'a, str>>,
+
+    #[builder(default)]
+    version: Option<adtcore::Version>,
+}
+
+impl<'a> Operation for ObjectSourceRequest<'a> {
+    const METHOD: http::Method = http::Method::GET;
+
+    type Kind = Stateless;
+    type Response = CacheControlled<Plain<'a>>;
+
+    fn url(&self) -> Cow<'static, str> {
+        format!("{}/source/main", self.object_uri).into()
+    }
+
+    fn parameters(&self) -> QueryParameters {
+        let mut params = QueryParameters::default();
+        params.push_opt("version", self.version.clone());
+        params
+    }
+
+    /// Headers need to handle whether we have a cached version locally and provide the ETag.
+    fn headers(&self) -> Option<http::HeaderMap> {
+        let mut map = HeaderMap::new();
+        match &self.etag {
+            None => map.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
+            Some(etag) => map.insert(header::IF_NONE_MATCH, HeaderValue::from_str(etag).unwrap()),
+        };
+        map.insert(header::ACCEPT, HeaderValue::from_static("text/plain"));
+        Some(map)
     }
 }
 

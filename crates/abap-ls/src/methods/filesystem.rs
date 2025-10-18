@@ -1,7 +1,12 @@
+use adt_query::{
+    api::object::{ObjectSourceRequest, ObjectSourceRequestBuilder},
+    dispatch::StatelessDispatch as _,
+    response::CacheControlled,
+};
 use serde::{Deserialize, Serialize};
 use slotmap::DefaultKey;
-use tower_lsp::jsonrpc::Result;
-use vfs::nodes::VirtualNode;
+use tower_lsp::{LanguageServer, jsonrpc::Result};
+use vfs::nodes::{VirtualNode, VirtualNodeData};
 
 use crate::backend::Backend;
 
@@ -22,6 +27,20 @@ pub struct ExpandResult {
     children: Vec<VirtualNode>,
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadFileParams {
+    pub id: DefaultKey,
+
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadFileResult {
+    pub content: String,
+}
+
 impl Backend {
     pub async fn expand(&self, params: ExpandParams) -> Result<ExpandResult> {
         let ctx = self.context().unwrap();
@@ -31,5 +50,32 @@ impl Backend {
 
         let children: Vec<VirtualNode> = result.into_iter().cloned().collect();
         Ok(ExpandResult { children })
+    }
+
+    pub async fn read(&self, params: ReadFileParams) -> Result<ReadFileResult> {
+        let ctx = self.context().unwrap();
+        let filetree = ctx.filetree.lock().await;
+
+        let node = filetree.lookup(params.id).unwrap();
+
+        let obj = match &node.data {
+            VirtualNodeData::RepositoryObject(obj) => obj,
+            _ => panic!(),
+        };
+
+        let req = ObjectSourceRequestBuilder::default()
+            .object_uri(&obj.adt_uri)
+            .build()
+            .unwrap();
+
+        let result = req.dispatch(&ctx.adt_client).await.unwrap();
+        match result {
+            CacheControlled::Modified(t) => {
+                return Ok(ReadFileResult {
+                    content: t.into_body().inner().into(),
+                });
+            }
+            CacheControlled::NotModified(_) => return Ok(ReadFileResult { content: "".into() }),
+        }
     }
 }

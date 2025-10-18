@@ -100,6 +100,12 @@ where
 #[derive(Debug)]
 pub struct Plain<'a>(Cow<'a, str>);
 
+impl<'a> Plain<'a> {
+    pub fn inner(self) -> Cow<'a, str> {
+        self.0
+    }
+}
+
 impl<'a> DeserializeResponse for Plain<'a> {
     fn deserialize_response(body: String) -> Result<Self, ResponseError> {
         Ok(Plain(Cow::Owned(body)))

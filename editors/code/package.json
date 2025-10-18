@@ -48,7 +48,8 @@
       {
         "id": "abap",
         "extensions": [
-          ".abap"
+          ".prog",
+          ".clas"
         ]
       }
     ],
@@ -208,6 +209,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "compile": "vite build",
     "preview": "vite preview",
     "vscode:prepublish": "npm run compile",
     "watch": "tsc -watch -p ./ --diagnostics",

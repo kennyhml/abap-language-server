@@ -1,6 +1,9 @@
 use tokio::sync::{Mutex, OnceCell};
 use tower_lsp::jsonrpc::{Error, Result};
-use tower_lsp::lsp_types::{InitializedParams, MessageType};
+use tower_lsp::lsp_types::{
+    DidOpenTextDocumentParams, InitializedParams, MessageType, TextDocumentSyncCapability,
+    TextDocumentSyncKind,
+};
 use tower_lsp::{
     Client as LspClient, LanguageServer,
     lsp_types::{InitializeParams, InitializeResult, ServerCapabilities},
@@ -58,10 +61,17 @@ impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                    TextDocumentSyncKind::INCREMENTAL,
+                )),
                 ..Default::default()
             },
             ..Default::default()
         })
+    }
+
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        println!("Got a did_open message!");
     }
 
     async fn initialized(&self, _: InitializedParams) {
