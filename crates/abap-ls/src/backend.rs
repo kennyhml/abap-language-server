@@ -1,13 +1,16 @@
+use std::vec;
+
 use adt_query::api::object::ObjectSourceRequestBuilder;
 use adt_query::dispatch::StatelessDispatch;
 use adt_query::response::CacheControlled;
 use syntax::cst::SyntaxTree;
+use syntax::tokens::SemanticToken;
 use tokio::sync::{Mutex, OnceCell};
 use tower_lsp::jsonrpc::{Error, Result};
 use tower_lsp::lsp_types::{
-    DidOpenTextDocumentParams, InitializedParams, MessageType, SemanticTokensLegend,
-    SemanticTokensOptions, SemanticTokensParams, SemanticTokensResult, TextDocumentSyncCapability,
-    TextDocumentSyncKind,
+    self, DidOpenTextDocumentParams, InitializedParams, MessageType, SemanticTokens,
+    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams, SemanticTokensResult,
+    TextDocumentSyncCapability, TextDocumentSyncKind,
 };
 use tower_lsp::{
     Client as LspClient, LanguageServer,
@@ -158,7 +161,58 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "semantic received.")
             .await;
-        return Ok(None);
+
+        let ctx = self.context().unwrap();
+        let mut repo = ctx.repository.lock().await;
+
+        //TODO: The uri we receive here is the object uri in the filesystem, not the ADT URI!!
+        // Static temporary workaround to make it work
+        let obj = repo
+            .fetch("/sap/bc/adt/programs/programs/z_test", &ctx.adt_client)
+            .await;
+
+        let mut nodes = obj.syntax_tree.semantic_tokens();
+
+        nodes.sort_by_key(|n| n.start_byte);
+
+        let mut result: Vec<tower_lsp::lsp_types::SemanticToken> = vec![];
+        let mut prev: Option<SemanticToken> = None;
+        for i in 0..nodes.len() {
+            let curr = nodes[i];
+            if let Some(prev) = prev {
+                result.push(tower_lsp::lsp_types::SemanticToken {
+                    delta_line: curr.row - prev.row,
+                    delta_start: if curr.row == prev.row {
+                        curr.column - prev.column
+                    } else {
+                        curr.column
+                    },
+                    length: curr.length,
+                    token_type: curr.token_type.index(),
+                    token_modifiers_bitset: 0,
+                })
+            } else {
+                result.push(tower_lsp::lsp_types::SemanticToken {
+                    delta_line: curr.row,
+                    delta_start: curr.column,
+                    length: curr.length,
+                    token_type: curr.token_type.index(),
+                    token_modifiers_bitset: 0,
+                })
+            }
+            self.client
+                .log_message(MessageType::INFO, format!("{:?}", result))
+                .await;
+            prev = Some(curr);
+        }
+
+        return Ok(Some(
+            SemanticTokens {
+                result_id: None,
+                data: result,
+            }
+            .into(),
+        ));
     }
 
     async fn shutdown(&self) -> Result<()> {

@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum TokenType {
@@ -24,6 +26,11 @@ impl TokenType {
     pub const fn names() -> &'static [&'static str] {
         &["variable", "keyword", "number", "string", "type"]
     }
+
+    pub fn from_name(name: &str) -> Self {
+        let idx = Self::names().iter().position(|n| *n == name).unwrap();
+        Self::ALL[idx]
+    }
 }
 
 #[repr(u32)]
@@ -34,6 +41,7 @@ pub enum TokenModifier {
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct SemanticToken {
+    pub start_byte: usize,
     pub row: u32,
     pub column: u32,
     pub length: u32,
