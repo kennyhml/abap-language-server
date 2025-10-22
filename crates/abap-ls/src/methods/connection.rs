@@ -91,6 +91,10 @@ impl Backend {
             _ => {}
         };
 
+        //TODO: At this point, we we can uniquely identify the client connection, so
+        // we should check if we have a dangling context to assign to this connection.
+        // This will ensure that, even if the client temporarily disconnects, the connection
+        // context can be easily restored without having the logon session drop (which would also drop locks)
         self.client_ctx_once
             .set(ClientContext::new(client, params.system_id))
             .unwrap();

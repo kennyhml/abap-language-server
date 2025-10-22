@@ -3,9 +3,10 @@ import { AddConnectionPanel } from './panels/addConnection';
 import { ConnectionTreeProvider } from 'views/connectionTree';
 import { EditConnectionPanel } from 'panels/editConnection';
 import { VirtualFilesystem } from 'adapters/filesystem';
-import { ConnectionManager } from 'lib';
+import { ADT_URI_SCHEME, ConnectionManager } from 'lib';
 import type { ConnectionData } from 'core';
 import { SystemDecorationProvider } from 'adapters';
+import { legend, SemanticHighlighter } from 'adapters/highlighter';
 
 export async function activate(context: vscode.ExtensionContext) {
 	let connections = new ConnectionManager(
@@ -25,6 +26,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('abap.openAddConnectionScreen', () => {
 			AddConnectionPanel.render(context, connections);
 		}),
+	);
+
+	vscode.languages.registerDocumentSemanticTokensProvider(
+		{
+			scheme: ADT_URI_SCHEME,
+			language: 'abap',
+		},
+		new SemanticHighlighter(connections),
+		legend,
 	);
 
 	context.subscriptions.push(

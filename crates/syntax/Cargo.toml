@@ -1,0 +1,13 @@
+[package]
+name = "syntax"
+version = "0.1.0"
+edition = "2024"
+description = "Abstract Syntax Tree"
+
+[dependencies]
+tree-sitter = "0.25.10"
+tree-sitter-highlight = "0.25.10"
+tree-sitter-abap = { path = "../../../tree-sitter-abap" }
+
+[build-dependencies]
+cc = "*"

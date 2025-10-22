@@ -9,6 +9,7 @@ path = "./src/main.rs"
 
 [dependencies]
 vfs = { path = "../vfs" }
+syntax = { path = "../syntax" }
 tower-lsp.workspace = true
 tokio.workspace = true
 serde.workspace = true

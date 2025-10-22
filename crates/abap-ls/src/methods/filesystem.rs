@@ -63,19 +63,11 @@ impl Backend {
             _ => panic!(),
         };
 
-        let req = ObjectSourceRequestBuilder::default()
-            .object_uri(&obj.adt_uri)
-            .build()
-            .unwrap();
+        let mut repo = ctx.repository.lock().await;
+        let obj = repo.fetch(&obj.adt_uri, &ctx.adt_client).await;
 
-        let result = req.dispatch(&ctx.adt_client).await.unwrap();
-        match result {
-            CacheControlled::Modified(t) => {
-                return Ok(ReadFileResult {
-                    content: t.into_body().inner().into(),
-                });
-            }
-            CacheControlled::NotModified(_) => return Ok(ReadFileResult { content: "".into() }),
-        }
+        Ok(ReadFileResult {
+            content: obj.source().to_owned(),
+        })
     }
 }
