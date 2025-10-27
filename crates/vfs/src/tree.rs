@@ -43,6 +43,18 @@ impl VirtualFileTree {
         ids.iter().map(|id| self.lookup(*id).unwrap()).collect()
     }
 
+    pub fn uri(&self, id: DefaultKey) -> String {
+        let mut segments = vec![];
+
+        let mut next = self.lookup(id);
+        while let Some(curr) = next {
+            segments.push(curr.name());
+            next = curr.parent.and_then(|v| self.lookup(v));
+        }
+        segments.reverse();
+        segments.join("/")
+    }
+
     pub async fn expand<T>(&mut self, id: DefaultKey, client: &AdtClient<T>) -> Vec<&VirtualNode>
     where
         T: RequestDispatch,

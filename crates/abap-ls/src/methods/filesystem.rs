@@ -5,7 +5,7 @@ use adt_query::{
 };
 use serde::{Deserialize, Serialize};
 use slotmap::DefaultKey;
-use tower_lsp::{LanguageServer, jsonrpc::Result};
+use tower_lsp::{LanguageServer, jsonrpc::Result, lsp_types::MessageType};
 use vfs::nodes::{VirtualNode, VirtualNodeData};
 
 use crate::backend::Backend;
@@ -31,6 +31,8 @@ pub struct ExpandResult {
 #[serde(rename_all = "camelCase")]
 pub struct ReadFileParams {
     pub id: DefaultKey,
+
+    pub uri: String,
 
     pub version: Option<String>,
 }
@@ -64,10 +66,16 @@ impl Backend {
         };
 
         let mut repo = ctx.repository.lock().await;
-        let obj = repo.fetch(&obj.adt_uri, &ctx.adt_client).await;
+        let obj = match repo.fetch(&params.uri).await {
+            Some(obj) => obj,
+            None => {
+                repo.store(&params.uri, &obj.adt_uri, &ctx.adt_client).await;
+                repo.fetch(&params.uri).await.unwrap()
+            }
+        };
 
         Ok(ReadFileResult {
-            content: obj.source().to_owned(),
+            content: obj.text().to_string(),
         })
     }
 }

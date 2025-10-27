@@ -169,6 +169,7 @@ export class VirtualFilesystem implements FileSystemProvider {
 		let client = this.connections.getActive(system)!.getLanguageClient();
 		let result = await client.invokeCustom('filesystem/source', {
 			id: node.id,
+			uri: uri.toString(),
 		});
 
 		return new TextEncoder().encode(result.content);

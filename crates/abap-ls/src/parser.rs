@@ -21,12 +21,15 @@ mod tests {
     #[test]
     fn test() {
         let source_code = r#"
-data: l_s_valsid   type rrsi_s_valsid,
-data: l_s_chavl    like gt_s_chavl,
-data: l_s_sidtab   type /BI0/SCURRENCY,
-data: l_t_sidtab   type /BI0/SCURRENCY,
-data: l_t_upd_key(30)  type c,
-data: l_len_nc     type i.
+*&---------------------------------------------------------------------*
+*& Report z_test
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+
+types: /esadwad/dad.
+data(foo) " comment
+= 10.
         "#;
 
         let query = Query::new(

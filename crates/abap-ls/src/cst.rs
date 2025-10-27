@@ -7,7 +7,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct SyntaxTree {
-    cst: Tree,
+    pub cst: Tree,
     source: String,
 }
 

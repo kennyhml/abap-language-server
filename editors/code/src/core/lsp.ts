@@ -11,7 +11,7 @@ export type LanguageServerMethods = {
 		result: { children: FilesystemNode[] };
 	};
 	'filesystem/source': {
-		params: { id: NodeId };
+		params: { id: NodeId; uri: string };
 		result: { content: string };
 	};
 	'connection/connect': {
