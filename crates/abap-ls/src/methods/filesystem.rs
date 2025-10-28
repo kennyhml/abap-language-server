@@ -60,11 +60,16 @@ impl Backend {
             VirtualNodeData::RepositoryObject(obj) => obj,
             _ => panic!(),
         };
+        let content = if let Some(doc) = ctx.fetch_document(&params.uri) {
+            println!("Document {} was already loaded.", params.uri);
+            doc.lock().unwrap().raw_content()
+        } else {
+            let obj = SourceCodeDocument::fetch(&params.uri, &obj.adt_uri, &ctx.adt_client).await;
+            let text = obj.raw_content();
+            ctx.store_document(obj);
+            text
+        };
 
-        let obj = SourceCodeDocument::load(&params.uri, &obj.adt_uri, &ctx.adt_client).await;
-        let text = obj.raw_content();
-        ctx.store_document(obj).await;
-
-        Ok(ReadFileResult { content: text })
+        Ok(ReadFileResult { content })
     }
 }

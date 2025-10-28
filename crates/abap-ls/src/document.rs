@@ -33,7 +33,8 @@ impl SourceCodeDocument {
         self.rope.to_string()
     }
 
-    pub async fn load(vfs_uri: &str, adt_uri: &str, client: &AdtClient) -> Self {
+    /// Fetches the documents source code from the ADT Backend and parses it.
+    pub async fn fetch(vfs_uri: &str, adt_uri: &str, client: &AdtClient) -> Self {
         let req = ObjectSourceRequestBuilder::default()
             .object_uri(adt_uri)
             .build()
@@ -49,6 +50,24 @@ impl SourceCodeDocument {
                     cst: load_parser().parse(&*content, None).unwrap(),
                     rope: content.into(),
                 };
+            }
+            _ => unimplemented!("Caching"),
+        }
+    }
+
+    /// Refreshes the document the same as the initial [fetch](Self::fetch) (no etag checks).
+    pub async fn refresh(&mut self, client: &AdtClient) {
+        let req = ObjectSourceRequestBuilder::default()
+            .object_uri(&self.adt_uri)
+            .build()
+            .unwrap();
+
+        let result = req.dispatch(&client).await.unwrap();
+        match result {
+            CacheControlled::Modified(t) => {
+                let content = t.into_body().inner();
+                self.cst = load_parser().parse(&*content, None).unwrap();
+                self.rope = content.into();
             }
             _ => unimplemented!("Caching"),
         }

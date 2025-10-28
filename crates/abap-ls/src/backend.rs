@@ -88,10 +88,9 @@ impl LanguageServer for Backend {
         let ctx = self.context().unwrap();
         let obj = ctx
             .fetch_document(params.text_document.uri.as_str())
-            .await
             .unwrap();
 
-        let mut nodes = obj.lock().await.semantic_tokens();
+        let mut nodes = obj.lock().unwrap().semantic_tokens();
 
         nodes.sort_by_key(|n| n.start_byte);
 

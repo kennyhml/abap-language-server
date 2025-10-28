@@ -8,7 +8,7 @@ use adt_query::{
 };
 use reqwest::{Certificate, Url};
 use serde::{Deserialize, Serialize};
-use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
+use tower_lsp::jsonrpc::{self, Error, ErrorCode, Result};
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -54,6 +54,10 @@ pub struct ConnectParams {
 
     /// Accept certificates that are not signed by a trusted authority
     pub accept_invalid_certs: bool,
+
+    /// Whether this is a session restoration attempt. If the session context
+    /// cant be restored, it should error.
+    pub restore: bool,
 }
 
 /// Response of **`connection/connect`**
@@ -74,6 +78,10 @@ impl Backend {
         if let Some(ctx) = CONTEXT_STORE.try_restore(&params.system_id) {
             self.context.set(ctx).unwrap();
             return Ok(ConnectResult::Restored);
+        }
+
+        if params.restore {
+            return Err(Error::invalid_params("Cannot restore."));
         }
 
         let credentials = match &params.authentication {

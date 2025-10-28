@@ -3,6 +3,7 @@
  */
 import child_process from 'child_process';
 import { connect, type Socket } from 'net';
+import psList from 'ps-list';
 
 /**
  * Path of the language server on the filesystem,
@@ -48,6 +49,12 @@ export async function establishServerConnection(): Promise<Socket> {
 		throw Error('Could not spawn & connect to language server.');
 	}
 	return connection;
+}
+
+export async function isLanguageServerRunning(): Promise<boolean> {
+	const processList = await psList();
+	const name = getLanguageServerPath().split('/').pop();
+	return processList.some((process) => process.name === name);
 }
 
 /**

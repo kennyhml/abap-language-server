@@ -15,7 +15,11 @@ export type LanguageServerMethods = {
 		result: { content: string };
 	};
 	'connection/connect': {
-		params: { systemId: string; authentication: any } & ConnectionParams;
-		result: { kind: 'alreadyConnected' | 'created' };
+		params: {
+			systemId: string;
+			authentication: any;
+			restore: boolean;
+		} & ConnectionParams;
+		result: { kind: 'alreadyConnected' | 'created' | 'restored' };
 	};
 };

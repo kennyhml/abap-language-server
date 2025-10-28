@@ -5,13 +5,13 @@ import {
 	type CloseHandlerResult,
 	type ErrorHandler,
 	type ErrorHandlerResult,
-	type StreamInfo,
 } from 'vscode-languageclient/node';
 import { window, workspace } from 'vscode';
 import { type ConnectionData } from 'core';
 import type { LanguageServerMethods } from 'core/lsp';
 import { establishServerConnection } from 'core/client';
 import { ADT_URI_SCHEME } from './uri';
+import type { Socket } from 'net';
 
 class ClientErrorHandler implements ErrorHandler {
 	error(error: Error, message: any, count: number): ErrorHandlerResult {
@@ -28,14 +28,17 @@ class ClientErrorHandler implements ErrorHandler {
 export class AbapLanguageClient extends LanguageClient {
 	public static async connect(
 		data: ConnectionData,
+		restore?: boolean,
 	): Promise<AbapLanguageClient> {
-		let client = new AbapLanguageClient(data.systemId);
+		let socket = await establishServerConnection();
+		let client = new AbapLanguageClient(data.systemId, socket);
 
 		try {
 			await client.start();
 			await client.invokeCustom('connection/connect', {
 				...data.params,
 				systemId: data.systemId,
+				restore: restore ?? false,
 				authentication: {
 					kind: 'password',
 					username: 'DEVELOPER',
@@ -48,8 +51,14 @@ export class AbapLanguageClient extends LanguageClient {
 		}
 		return client;
 	}
-	private constructor(system: string) {
+
+	private constructor(system: string, private socket: Socket) {
 		let ch = window.createOutputChannel(`${system} Language Server`, 'abap');
+		const serverOptions = async () => ({
+			writer: socket,
+			reader: socket,
+			detached: true,
+		});
 		super('abap', `${system} Language Server`, serverOptions, {
 			outputChannel: ch,
 			errorHandler: new ClientErrorHandler(),
@@ -75,10 +84,6 @@ export class AbapLanguageClient extends LanguageClient {
 			.catch((err) => {
 				console.error('Could not stop the server: ', err);
 			});
+		this.socket;
 	}
 }
-
-const serverOptions = async (): Promise<StreamInfo> => {
-	let socket = await establishServerConnection();
-	return { writer: socket, reader: socket, detached: true };
-};

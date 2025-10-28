@@ -6,6 +6,8 @@ import {
 } from 'core';
 import { ADT_URI_SCHEME, getConnectionUri } from './uri';
 import { AbapLanguageClient } from './languageClient';
+import { isLanguageServerRunning } from 'core/client';
+import * as vscode from 'vscode';
 
 /**
  * Event to inform listeners when a connection changed, even when the entity
@@ -30,8 +32,28 @@ export class ConnectionManager {
 	constructor(private workspaceState: Memento, private globalState: Memento) {
 		this.globalConnections = this.loadGlobalConnections();
 
-		// Todo: Check the workspace state if there are any connections to restore
 		this.activeConnections = [];
+		this.restoreWorkspaceConnections();
+	}
+
+	/**
+	 * Parks __all__ currently active connections in the session.
+	 *
+	 * Should be called when the extension deactivates, regardless of whether that
+	 * is due to a reload, restart or long-term termination of the IDE.
+	 *
+	 * The language clients are disconnected __implicitly__ meaning a Time-to-Live
+	 * for the client on the backend applies. The clients which were connected
+	 * at the time of the shutdown remain persisted to the workspace storage and
+	 * will attempt to automatically restore that session if reactivated in a
+	 * short timeframe.
+	 *
+	 * This is contrary to an __explicit__ shutdown where the user chooses to disconnect
+	 * from one or more clients via the tree view or a command, but the extension itself
+	 * keeps running.
+	 */
+	public async parkConnections(): Promise<void> {
+		await Promise.all(this.activeConnections.map((conn) => conn.disconnect()));
 	}
 
 	/**
@@ -114,7 +136,40 @@ export class ConnectionManager {
 	}
 
 	/**
-	 * Connects to a system with the given connection parameters.
+	 * Disconnects from a {@link Connection} matching the data given, if valid.
+	 *
+	 * This initiates an __explicit__ disconnect on a per-connection basis. That means that
+	 * no Time-To-Live for the connections context applies, it is immediately destroyed on
+	 * the backend and cannot be restored when the connection is re-established.
+	 *
+	 * Thus, this is suitable to handle explicit, user intended disconnects from particular
+	 * systems or disconnecting from all via a command but without shutting down the editor.
+	 *
+	 * @param data The data of the connection to close. The `systemId` must match.
+	 *
+	 * @throws if there is no active connection for the given data.
+	 */
+	public async disconnect(data: ConnectionData) {
+		let idx = this.activeConnections.findIndex(
+			(c) => c.data.systemId === data.systemId,
+		);
+		if (idx === -1) {
+			throw Error(`Not connected to any system '${data.name}'`);
+		}
+		let connection = this.activeConnections.splice(idx, 1)[0];
+		await connection.disconnect();
+		this._onDidChangeConnection.fire({
+			connection: connection.data,
+			kind: 'disconnected',
+		});
+	}
+
+	/**
+	 * Attempts to connect to a system with the given connection parameters.
+	 *
+	 * Do not use this method to attempt to restore a parked session. Re-establishing
+	 * parked connects happens automatically during extension startup and should not
+	 * be attempted any time afterwards.
 	 *
 	 * @param params The data of the connection to establish.
 	 *
@@ -127,14 +182,15 @@ export class ConnectionManager {
 
 		const workspaceUri = getConnectionUri(params);
 		const folders = workspace.workspaceFolders ?? [];
-		// The connection may or may not have been added to the workspace yet. The annoying
-		// part is that in certain scenarios, such as changing the first folder in the workspace
+		// The connection may or may not have been added to the workspace yet. The obnoxious
+		// part is that, in certain scenarios, such as changing the first folder in the workspace
 		// or transitioning into a multi-root workspace, will forcefully reload the workspace
-		// and thus also all extensions. Thats why we have to make sure to always append the
-		// new folder to the end and be able to handle the extension reloading at any time.
+		// and thus also all extensions.
+		// We can mitigate the issue by always appending new folders to the end of the list, but
+		// fundamentally this is one of the reasons why the connection parking is so important.
 		if (!folders.some((f) => f.name === params.systemId)) {
 			window.showWarningMessage(
-				`Adding ${params.systemId} to workspace, extension might reload...`,
+				`Adding '${params.systemId}' to workspace, editor might reload...`,
 			);
 			workspace.updateWorkspaceFolders(folders.length, 0, {
 				uri: workspaceUri,
@@ -145,6 +201,7 @@ export class ConnectionManager {
 
 		const connection = await Connection.connect(params);
 		this.activeConnections.push(connection);
+		await this.dumpWorkspaceConnections();
 		console.log(`Established workspace connection to '${params.name}'.`);
 		this._onDidChangeConnection.fire({ connection: params, kind: 'connected' });
 		return connection;
@@ -227,11 +284,102 @@ export class ConnectionManager {
 		return this.globalState.get('connections') ?? [];
 	}
 
+	private loadWorkspaceConnections(): string[] {
+		return this.workspaceState.get('parkedConnections') ?? [];
+	}
+
 	/**
 	 * Dumps the global connections to the global state storage for persistence.
 	 */
-	private dumpGlobalConnections(): void {
-		this.globalState.update('connections', this.globalConnections);
+	private async dumpGlobalConnections(): Promise<void> {
+		await this.globalState.update('connections', this.globalConnections);
+	}
+
+	/**
+	 * Dumps the active connections to the workspace state storage for connection parking.
+	 */
+	private async dumpWorkspaceConnections(): Promise<void> {
+		let parked = this.activeConnections.map((conn) => conn.data.systemId);
+		await this.workspaceState.update('parkedConnections', parked);
+	}
+
+	/**
+	 * Restores a connection that was temporarily parked due to an implicit shutdown.
+	 *
+	 * In an ideal world, this means that the client context on the backend has not reached
+	 * the end of its Time-to-Live since the shutdown and the context can be restored.
+	 *
+	 * If this assumption does not hold true and the backend informs us that there is no
+	 * parked context left for this session, `undefined` is returned.
+	 */
+	private async restore(
+		params: ConnectionData,
+	): Promise<Connection | undefined> {
+		const connection = await Connection.restore(params);
+		if (!connection) {
+			return undefined;
+		}
+
+		this.activeConnections.push(connection);
+		console.log(`Restored workspace connection to '${params.name}'.`);
+		this._onDidChangeConnection.fire({ connection: params, kind: 'connected' });
+		return connection;
+	}
+
+	/**
+	 * Implementation detail to restore parked workspace connections on startup.
+	 *
+	 * @note If one or more parked workspace connections exist, but the language
+	 * server process is not currently running, no attempts to restore connections
+	 * will be made as there cant be any client contexts left to restore anyway.
+	 */
+	private async restoreWorkspaceConnections() {
+		let parked = this.loadWorkspaceConnections();
+		if (!parked || parked.length === 0) {
+			console.log('No parked connections to restore.');
+		} else if (!isLanguageServerRunning()) {
+			vscode.window.showErrorMessage(
+				'Parked connections could not be restored, the language server has unexpectedly shut down.',
+			);
+		} else {
+			await this.restoreConnectionsImpl(parked);
+		}
+		await this.dumpWorkspaceConnections();
+	}
+
+	/**
+	 * Attempts to restore the provided workspace connections by system id.
+	 *
+	 * Wrapped in a vscode progress bar to indicate to the user that something is
+	 * going on.
+	 *
+	 * If re-establishing a connection fails, a warning is displayed.
+	 */
+	private async restoreConnectionsImpl(connections: string[]) {
+		const toRestore = connections.length;
+		await vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: `Restoring ${toRestore} parked connections..`,
+				cancellable: false,
+			},
+			async (progress, _token) => {
+				const promises = connections.map((system, idx) => async () => {
+					const data = this.getData(system)!;
+					if (!(await this.restore(data))) {
+						vscode.window.showWarningMessage(
+							`Could not restore parked connection '${system}'.`,
+						);
+					}
+					progress.report({
+						message: `${system} (${idx + 1}/${toRestore})`,
+						increment: 100 / toRestore,
+					});
+				});
+
+				await Promise.all(promises.map((p) => p()));
+			},
+		);
 	}
 
 	private readonly _onDidChangeConnection =
@@ -254,13 +402,27 @@ export class Connection {
 		private languageClient: AbapLanguageClient,
 	) {}
 
-	public static async connect(data: ConnectionData) {
+	public static async connect(data: ConnectionData): Promise<Connection> {
 		if (isRfcConnection(data.params)) {
 			throw Error('Rfc connections are not supported');
 		}
 		let client = await AbapLanguageClient.connect(data);
 
 		return new Connection(data, client);
+	}
+
+	public static async restore(
+		data: ConnectionData,
+	): Promise<Connection | undefined> {
+		if (isRfcConnection(data.params)) {
+			throw Error('Rfc connections are not supported');
+		}
+		try {
+			let client = await AbapLanguageClient.connect(data, true);
+			return new Connection(data, client);
+		} catch (err) {
+			return undefined;
+		}
 	}
 
 	public getLanguageClient(): AbapLanguageClient {

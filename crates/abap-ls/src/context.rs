@@ -14,14 +14,13 @@ pub type AdtClient = adt_query::Client<reqwest::Client>;
 /// the client has disconnect in anticipation of having to reserve it shortly after.
 #[derive(Debug)]
 pub struct ClientContext {
-    // Client to communicate with the ADT backend
     pub system_id: String,
 
     pub adt_client: AdtClient,
 
     pub filetree: AsyncMutex<VirtualFileTree>,
 
-    pub documents: AsyncMutex<HashMap<String, Arc<AsyncMutex<SourceCodeDocument>>>>,
+    pub documents: SyncMutex<HashMap<String, Arc<SyncMutex<SourceCodeDocument>>>>,
 }
 
 impl ClientContext {
@@ -30,7 +29,7 @@ impl ClientContext {
             system_id: system.clone(),
             adt_client,
             filetree: AsyncMutex::new(VirtualFileTree::new(system)),
-            documents: AsyncMutex::new(HashMap::new()),
+            documents: SyncMutex::new(HashMap::new()),
         }
     }
 
@@ -38,18 +37,15 @@ impl ClientContext {
         &self.system_id
     }
 
-    pub async fn store_document(&self, document: SourceCodeDocument) {
-        self.documents.lock().await.insert(
+    pub fn store_document(&self, document: SourceCodeDocument) {
+        self.documents.lock().unwrap().insert(
             document.vfs_uri().to_owned(),
-            Arc::new(AsyncMutex::new(document)),
+            Arc::new(SyncMutex::new(document)),
         );
     }
 
-    pub async fn fetch_document(
-        &self,
-        vfs_uri: &str,
-    ) -> Option<Arc<AsyncMutex<SourceCodeDocument>>> {
-        self.documents.lock().await.get(vfs_uri).cloned()
+    pub fn fetch_document(&self, vfs_uri: &str) -> Option<Arc<SyncMutex<SourceCodeDocument>>> {
+        self.documents.lock().unwrap().get(vfs_uri).cloned()
     }
 }
 
@@ -70,7 +66,7 @@ pub struct ContextStore {
 }
 
 impl ContextStore {
-    const DEFAULT_TTL: Duration = Duration::from_secs(300);
+    const DEFAULT_TTL: Duration = Duration::from_secs(30);
 
     /// Returns a client context mapped to the given system id if available.
     ///
@@ -110,6 +106,7 @@ impl ContextStore {
     ///
     /// To use thethe [default](Self::DEFAULT_TTL) TTL, use [start_ttl](Self::start_ttl).
     pub fn start_custom_ttl(&self, system_id: &str, ttl: Duration) {
+        println!("TTL Begin on {system_id}");
         self.time_to_live
             .lock()
             .unwrap()
@@ -126,10 +123,11 @@ impl ContextStore {
         let now = Instant::now();
         let ttl_passed: Vec<_> = ttls
             .iter()
-            .filter(|(_, ttl)| now.duration_since(*ttl.to_owned()).is_zero())
+            .filter(|(_, ttl)| !now.duration_since(*ttl.to_owned()).is_zero())
             .map(|(system, _)| system.to_owned())
             .collect();
 
+        println!("TTL Drop {ttl_passed:?}");
         for system in &ttl_passed {
             contexts.remove(system);
             ttls.remove(system);

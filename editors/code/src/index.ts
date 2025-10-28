@@ -7,8 +7,10 @@ import { ConnectionManager } from 'lib';
 import type { ConnectionData } from 'core';
 import { SystemDecorationProvider } from 'adapters';
 
+let connections: ConnectionManager;
+
 export async function activate(context: vscode.ExtensionContext) {
-	let connections = new ConnectionManager(
+	connections = new ConnectionManager(
 		context.workspaceState,
 		context.globalState,
 	);
@@ -25,6 +27,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('abap.openAddConnectionScreen', () => {
 			AddConnectionPanel.render(context, connections);
 		}),
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			'abap.disconnectFromSystem',
+			(conn: ConnectionData) => {
+				connections.disconnect(conn);
+			},
+		),
 	);
 
 	context.subscriptions.push(
@@ -59,6 +70,12 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log('Extension activated.');
 }
 
-export function deactivate() {
+export async function deactivate() {
 	console.log('Deactivate.');
+	await connections.implicit_close_all();
+
+	// This gives the language clients enough time to send an EXIT notification
+	// and peace out cleanly. Could potentially improve this by waiting for the server
+	// to return an exit notification when disconnecting the client? Me no like fix delay
+	await new Promise((resolve) => setTimeout(resolve, 500));
 }
