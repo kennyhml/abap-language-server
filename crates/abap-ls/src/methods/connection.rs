@@ -1,4 +1,7 @@
-use crate::backend::{Backend, ClientContext};
+use std::sync::Arc;
+
+use crate::backend::Backend;
+use abap_lsp::context::{CONTEXT_STORE, ClientContext};
 use adt_query::{
     ClientBuilder, ConnectionParameters, HttpConnectionBuilder, auth::Credentials,
     dispatch::StatelessDispatch,
@@ -59,12 +62,18 @@ pub struct ConnectParams {
 pub enum ConnectResult {
     AlreadyConnected,
     Created,
+    Restored,
 }
 
 impl Backend {
     pub async fn connect(&self, params: ConnectParams) -> Result<ConnectResult> {
         if self.context().ok().is_some() {
             return Ok(ConnectResult::AlreadyConnected);
+        }
+
+        if let Some(ctx) = CONTEXT_STORE.try_restore(&params.system_id) {
+            self.context.set(ctx).unwrap();
+            return Ok(ConnectResult::Restored);
         }
 
         let credentials = match &params.authentication {
@@ -91,13 +100,9 @@ impl Backend {
             _ => {}
         };
 
-        //TODO: At this point, we we can uniquely identify the client connection, so
-        // we should check if we have a dangling context to assign to this connection.
-        // This will ensure that, even if the client temporarily disconnects, the connection
-        // context can be easily restored without having the logon session drop (which would also drop locks)
-        self.client_ctx_once
-            .set(ClientContext::new(client, params.system_id))
-            .unwrap();
+        let ctx = Arc::new(ClientContext::new(client, params.system_id.clone()));
+        self.context.set(ctx.clone()).unwrap();
+        CONTEXT_STORE.store(&params.system_id, ctx);
         Ok(ConnectResult::Created)
     }
 }

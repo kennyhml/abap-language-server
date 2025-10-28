@@ -1,11 +1,7 @@
-use adt_query::{
-    api::object::{ObjectSourceRequest, ObjectSourceRequestBuilder},
-    dispatch::StatelessDispatch as _,
-    response::CacheControlled,
-};
+use abap_lsp::document::SourceCodeDocument;
 use serde::{Deserialize, Serialize};
 use slotmap::DefaultKey;
-use tower_lsp::{LanguageServer, jsonrpc::Result, lsp_types::MessageType};
+use tower_lsp::jsonrpc::Result;
 use vfs::nodes::{VirtualNode, VirtualNodeData};
 
 use crate::backend::Backend;
@@ -65,17 +61,10 @@ impl Backend {
             _ => panic!(),
         };
 
-        let mut repo = ctx.repository.lock().await;
-        let obj = match repo.fetch(&params.uri).await {
-            Some(obj) => obj,
-            None => {
-                repo.store(&params.uri, &obj.adt_uri, &ctx.adt_client).await;
-                repo.fetch(&params.uri).await.unwrap()
-            }
-        };
+        let obj = SourceCodeDocument::load(&params.uri, &obj.adt_uri, &ctx.adt_client).await;
+        let text = obj.raw_content();
+        ctx.store_document(obj).await;
 
-        Ok(ReadFileResult {
-            content: obj.text().to_string(),
-        })
+        Ok(ReadFileResult { content: text })
     }
 }

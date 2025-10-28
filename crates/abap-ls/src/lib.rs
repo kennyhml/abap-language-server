@@ -1,4 +1,3 @@
-pub mod cst;
-pub mod edits;
-pub mod parser;
+pub mod context;
+pub mod document;
 pub mod tokens;
