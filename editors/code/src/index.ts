@@ -72,7 +72,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export async function deactivate() {
 	console.log('Deactivate.');
-	await connections.implicit_close_all();
+	await connections.park();
 
 	// This gives the language clients enough time to send an EXIT notification
 	// and peace out cleanly. Could potentially improve this by waiting for the server

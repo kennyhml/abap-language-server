@@ -52,7 +52,7 @@ export class ConnectionManager {
 	 * from one or more clients via the tree view or a command, but the extension itself
 	 * keeps running.
 	 */
-	public async parkConnections(): Promise<void> {
+	public async park(): Promise<void> {
 		await Promise.all(this.activeConnections.map((conn) => conn.disconnect()));
 	}
 
